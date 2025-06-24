@@ -1,0 +1,7 @@
+{
+  "access_token": "<GITHUB_TOKEN>",
+  "repository": "mistralai/client-python mistralai/mistral-inference mistralai/mistral-finetune mistralai/mistral-common mistralai/platform-docs-public mistralai/cookbook mistralai/client-js mistralai/client-ts mistralai/mistral-evals mistralai/sagemaker-docs",
+  "start_date": "2021-01-01T00:00:00Z",
+  "request_timeout": 300,
+  "base_url": "https://api.github.com"
+}

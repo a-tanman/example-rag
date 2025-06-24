@@ -1,0 +1,4 @@
+{
+    "path": "db.duckdb",
+    "default_target_schema": "main"
+}

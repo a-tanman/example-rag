@@ -1,0 +1,25 @@
+{
+  "repository": {
+    "name": "client-js",
+    "url": "https://github.com/mistralai/client-js",
+    "description": "JS Client library for Mistral AI platform (archived)",
+    "language": "JavaScript",
+    "stars": 193,
+    "priority": "medium"
+  },
+  "download_status": {
+    "repomix_success": true,
+    "issues_success": true,
+    "pulls_success": true,
+    "issue_comments_success": true,
+    "pull_comments_success": true,
+    "timestamp": "2025-06-22 18:16:10"
+  },
+  "files": {
+    "repomix_output": "repomix-output.xml",
+    "github_issues": "github-issues.json",
+    "github_pulls": "github-pulls.json",
+    "github_issue_comments": "github-issue-comments.json",
+    "github_pull_comments": "github-pull-comments.json"
+  }
+}

@@ -1,0 +1,65 @@
+[project]
+name = "example-rag"
+version = "0.1.0"
+description = "RAG chatbot for Mistral AI repositories using Gradio and LlamaIndex"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "requests>=2.32.4",
+    "gradio>=4.0.0",
+    "llama-index>=0.10.0",
+    "llama-index-embeddings-openai>=0.1.0",
+    "llama-index-llms-openai>=0.1.0",
+    "llama-index-vector-stores-duckdb>=0.1.0",
+    "duckdb>=0.9.0",
+    "openai>=1.0.0",
+    "python-dotenv>=1.0.0",
+    "lxml>=4.9.0",
+    "beautifulsoup4>=4.12.0",
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "typing-extensions>=4.8.0",
+    "llama-index-vector-stores-chroma>=0.4.2",
+    "llama-index-embeddings-mistralai>=0.3.0",
+    "llama-index-llms-mistralai>=0.6.0",
+    "llama-index-embeddings-huggingface>=0.3.0",
+    "tenacity>=8.0.0",
+    "ratelimit>=2.2.1",
+    "colorama>=0.4.6",
+    "nbformat>=5.10.4",
+    "pyperclip==1.8.2",
+    "pypdf2==2.10.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "mypy>=1.5.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[tool.black]
+line-length = 88
+target-version = ['py312']
+
+[tool.isort]
+profile = "black"
+line_length = 88

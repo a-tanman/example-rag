@@ -1,0 +1,1337 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+The content has been processed where security check has been disabled.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Security check has been disabled - content may contain sensitive information
+- Files are sorted by Git change count (files with more changes are at the bottom)
+- Git diffs from the worktree and staged changes are included
+</notes>
+
+</file_summary>
+
+<directory_structure>
+eval/
+  tasks/
+    __init__.py
+    chartqa.py
+    docvqa.py
+    mathvista.py
+    mm_mt_bench.py
+    mmmu.py
+    vqav2.py
+  metrics.py
+  models.py
+  run.py
+  task.py
+.gitignore
+README.md
+requirements.txt
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="eval/tasks/__init__.py">
+from eval.tasks.mm_mt_bench import MultimodalMTBench
+from eval.tasks.vqav2 import VQAv2
+from eval.tasks.docvqa import DocVQA
+from eval.tasks.mmmu import MMMU
+from eval.tasks.mathvista import MathVista
+from eval.tasks.chartqa import ChartQA
+
+
+TASK_REGISTRY = {
+    "mm_mt_bench": MultimodalMTBench,
+    "vqav2": VQAv2,
+    "docvqa": DocVQA,
+    "mmmu": MMMU,
+    "mathvista": MathVista,
+    "chartqa": ChartQA,
+}
+
+
+def get_task(task_name):
+    if task_name not in TASK_REGISTRY:
+        raise ValueError(f"Did not recognize task name {task_name}")
+
+    return TASK_REGISTRY[task_name]()
+</file>
+
+<file path="eval/tasks/chartqa.py">
+from typing import Any
+
+from eval.metrics import (
+    Metric,
+    ExplicitPromptRelaxedCorrectness,
+    AnywhereInAnswerRelaxedCorrectness,
+)
+from eval.task import HuggingFaceEval, Interaction
+
+
+PROMPT = """Analyze the image and question carefully, using step-by-step reasoning.
+First, describe any image provided in detail. Then, present your reasoning. And finally your final answer in this format:
+Final Answer: <answer>
+where <answer> follows the following instructions:
+- <answer> should should be a single phrase or number.
+- <answer> should not paraphrase or reformat the text in the image.
+- If <answer> is a ratio, it should be a decimal value like 0.25 instead of 1:4.
+- If the question is a Yes/No question, <answer> should be Yes/No.
+- If <answer> is a number, it should not contain any units.
+- If <answer> is a percentage, it should include a % sign.
+- If <answer> is an entity, it should include the full label from the graph.
+IMPORTANT: Remember, to end your answer with Final Answer: <answer>."""
+
+
+class ChartQA(HuggingFaceEval):
+    dataset_name = "lmms-lab/ChartQA"
+    dataset_split = "test"
+
+    def _to_interaction(self, row: dict[str, Any]) -> Interaction:
+        image = row["image"]
+        question = row["question"]
+        answer: list[str] = row["answer"]
+
+        return Interaction(
+            {
+                "temperature": 0.0,
+                "max_tokens": 2048,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "image", "image": image},
+                            {"type": "text", "text": question + "\n" + PROMPT},
+                        ],
+                    }
+                ],
+            },
+            reference_answer=answer,
+        )
+
+    @property
+    def metric_fns(self) -> list[Metric]:
+        return [
+            ExplicitPromptRelaxedCorrectness(),
+            AnywhereInAnswerRelaxedCorrectness(),
+        ]
+</file>
+
+<file path="eval/tasks/docvqa.py">
+from typing import Any
+
+from datasets import load_dataset
+from eval.metrics import ANLS, Metric
+from eval.task import HuggingFaceEval, Interaction
+
+PROMPT = "Answer the question using a single word or phrase."
+
+
+class DocVQA(HuggingFaceEval):
+    dataset_name = "lmms-lab/DocVQA"
+    dataset_split = "validation"
+    # DocVQA needs an extra config name.
+    dataset_config = "DocVQA"
+
+    @property
+    def metric_fns(self) -> list[Metric]:
+        return [ANLS()]
+
+    def _to_interaction(self, row: Any):
+        return Interaction(
+            {
+                "temperature": 0.0,
+                "max_tokens": 10,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "image", "image": row["image"]},
+                            {"type": "text", "text": row["question"] + "\n" + PROMPT},
+                        ],
+                    }
+                ],
+            },
+            reference_answer=row["answers"],
+        )
+
+    def get_dataset(self):
+        return load_dataset(self.dataset_name, self.dataset_config)[self.dataset_split]
+</file>
+
+<file path="eval/tasks/mathvista.py">
+from typing import Any
+
+from eval.metrics import (
+    Metric,
+    ExplicitPromptRelaxedCorrectness,
+    AnywhereInAnswerRelaxedCorrectness,
+)
+from eval.task import HuggingFaceEval, Interaction
+
+
+PROMPT = """Analyze the image and question carefully, using step-by-step reasoning.
+First, describe any image provided in detail. Then, present your reasoning. And finally your final answer in this format:
+Final Answer: <answer>
+where <answer> is:
+- The single correct letter choice A, B, C, D, E, F, etc. when options are provided. Only include the letter.
+- Your direct answer if no options are given, as a single phrase or number.
+- If your answer is a number, only include the number without any unit.
+- If your answer is a word or phrase, do not paraphrase or reformat the text you see in the image.
+- You cannot answer that the question is unanswerable. You must either pick an option or provide a direct answer.
+IMPORTANT: Remember, to end your answer with Final Answer: <answer>."""
+
+
+class MathVista(HuggingFaceEval):
+    dataset_name = "AI4Math/MathVista"
+    dataset_split = "testmini"
+
+    def _to_interaction(self, row: dict[str, Any]) -> Interaction:
+        image = row["decoded_image"]
+        question = row["query"]
+
+        if row["choices"]:
+            answer_index = row["choices"].index(row["answer"])
+            answer = chr(ord("A") + answer_index)
+        else:
+            answer = row["answer"]
+
+        return Interaction(
+            {
+                "temperature": 0.0,
+                "max_tokens": 2048,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "image", "image": image},
+                            {"type": "text", "text": question + "\n" + PROMPT},
+                        ],
+                    }
+                ],
+            },
+            reference_answer=answer,
+        )
+
+    @property
+    def metric_fns(self) -> list[Metric]:
+        return [
+            ExplicitPromptRelaxedCorrectness(),
+            AnywhereInAnswerRelaxedCorrectness(),
+        ]
+</file>
+
+<file path="eval/tasks/mm_mt_bench.py">
+import ast
+import json
+import re
+import time
+from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
+from typing import Any, Sequence, Optional
+
+import openai
+from tqdm import tqdm
+from datasets import load_dataset
+import numpy as np
+
+from eval.task import HuggingFaceEval, Interaction
+
+JUDGES = frozenset(
+    [
+        "gpt-4o-2024-05-13",
+    ]
+)
+DEFAULT_TEMPERATURE = 0.0
+DEFAULT_MAX_TOKENS = 4096
+BRACKET_SCORE_RE = re.compile(r"\[\[(\d+\.?\d*)\]\]")
+
+
+@dataclass
+class Judgement:
+    judgement: str
+    grade: float
+
+
+class MultimodalLLMJudge:
+    API_MAX_RETRY: int = 3
+    JUDGE_DEFAULT_TEMPERATURE: float = 0.0
+    JUDGE_MAX_TOKENS: int = 2048
+    SYSTEM_PROMPT: str = 'Please act as an impartial judge and evaluate the quality of the response provided by an AI assistant to the most recent question given the previous conversation as context. Your evaluation should consider correctness and helpfulness. You will be given a reference answer and the assistant\'s answer. Begin your evaluation by comparing the assistant\'s answer with the reference answer. Identify and correct any mistakes. Be as objective as possible. After providing your explanation, you must rate the response on a scale of 1 to 10 by strictly following this format: "[[rating]]", for example: "Rating: [[5]]".\n\n'
+
+    def __init__(self, judge_name: str):
+        self.judge_name = judge_name
+        self.client = openai.OpenAI()
+
+    def get_score(self, judgement: str) -> float:
+        match = re.search(BRACKET_SCORE_RE, judgement)
+        if match:
+            rating = ast.literal_eval(match.groups()[0])
+        else:
+            # Sometimes the judge fails to evaluate the generation
+            rating = -1
+        return rating
+
+    def _add_or_append_chunk(
+        self, prompt: list[dict[str, Any]], chunk: str | dict[str, Any]
+    ):
+        if isinstance(chunk, dict) and chunk["type"] == "image_url":
+            return chunk
+
+        text: str = chunk["text"] if isinstance(chunk, dict) else chunk
+        assert isinstance(text, str)
+        if prompt[-1]["type"] == "text":
+            prompt[-1]["text"] += text
+        else:
+            prompt.append({"type": "text", "text": text})
+
+    def _replay_conversation(
+        self,
+        prompt: list[dict[str, Any]],
+        questions: Sequence[str | Sequence[dict[str, Any]]],
+        ref_answers: Sequence[str],
+        final_answer: Optional[str] = None,
+    ):
+        for q, a in zip(questions, ref_answers):
+            if isinstance(q, str):
+                # Merge consecutive text blocks.
+                self._add_or_append_chunk(
+                    prompt, f"### User:\n{q}\n\n### Reference answer:\n{a}\n\n"
+                )
+            else:
+                assert prompt[-1]["type"] == "text"
+                prompt[-1]["text"] += "### User:\n"
+                for sub_q in q:
+                    self._add_or_append_chunk(prompt, sub_q)
+                self._add_or_append_chunk(prompt, f"\n\n### Reference answer:\n{a}\n\n")
+        self._add_or_append_chunk(
+            prompt, f"\n\n### Assistant's answer:\n{final_answer}\n\n"
+        )
+
+    def _get_judge_prompt(
+        self,
+        questions: list[str | list[dict[str, Any]]],
+        ref_answers: list[str],
+        final_answer: str,
+    ) -> list[dict[str, Any]]:
+        # Each part of the prompt is either a string or an image.
+        assert len(questions) == len(ref_answers)
+
+        prompt: list[dict[str, Any]] = [
+            {"type": "text", "text": "<|The Start of Conversation with User|>\n\n"}
+        ]
+        self._replay_conversation(prompt, questions, ref_answers, final_answer)
+        # Conversations always end in text answer from Assistant)
+        assert prompt[-1]["type"] == "text"
+        prompt[-1]["text"] += "<|The End of Conversation with User|>\n\n\n"
+
+        return prompt
+
+    def _query_judge(self, prompt):
+        rating = -1.0
+        judgement = ""
+        n_trials = 0
+        backoff = 1
+        while True:
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.judge_name,
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": self.SYSTEM_PROMPT,
+                        },
+                        {"role": "user", "content": prompt},
+                    ],
+                    max_tokens=self.JUDGE_MAX_TOKENS,
+                    temperature=self.JUDGE_DEFAULT_TEMPERATURE,
+                )
+                judgement = response.choices[0].message.content
+                rating = self.get_score(judgement)
+                # If the score is -1 it means that we failed to get a score.
+                if rating != -1.0:
+                    return Judgement(judgement, rating)
+            except Exception as e:
+                n_trials += 1
+                if n_trials < self.API_MAX_RETRY:
+                    print(
+                        f"Error {e} - retrying {n_trials}/{self.API_MAX_RETRY}",
+                    )
+                    time.sleep(backoff)
+                    backoff *= 2
+                else:
+                    raise e
+
+    def get_judgement(self, interaction: Interaction):
+        questions = [m for m in interaction.request["messages"] if m["role"] == "user"]
+        ref_answers = [
+            m for m in interaction.request["messages"] if m["role"] == "assistant"
+        ] + [interaction.reference_answer]
+        assert interaction.model_answer is not None
+        prompt = self._get_judge_prompt(
+            questions, ref_answers, interaction.model_answer
+        )
+        judgement = self._query_judge(prompt)
+        interaction.meta["judgement"] = judgement.judgement
+        interaction.metrics["score"] = judgement.grade
+        return interaction
+
+
+def run_judge(judge_name: str, interactions: list[Interaction]):
+    judge = MultimodalLLMJudge(judge_name)
+    futures = []
+    graded_interactions = []
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        for interaction in tqdm(interactions):
+            futures.append(executor.submit(judge.get_judgement, interaction))
+
+        for future in tqdm(
+            as_completed(futures), total=len(interactions), desc="Querying judge"
+        ):
+            graded_interactions.append(future.result())
+        return graded_interactions
+
+
+class MultimodalMTBench(HuggingFaceEval):
+    dataset_name = "mistralai/MM-MT-Bench"
+    dataset_split = "eval"
+    judge = "gpt-4o-2024-05-13"
+
+    def _to_interaction(self, row: Any):
+        # Unused for this class, but we need a concrete implementation.
+        raise NotImplementedError
+
+    def load_eval(self):
+        ds = load_dataset(self.dataset_name)[self.dataset_split]
+        for example in tqdm(ds, f"Loading {self.dataset_name} [{self.dataset_split}]"):
+            messages = json.loads(example["conversation"])
+            image = example["image"]
+            category = example["category"]
+            for index in range(len(messages)):
+                if index == 0:
+                    # Image is always the first chunk of first message.
+                    assert messages[0]["content"][0]["type"] == "image"
+                    messages[0]["content"][0]["image"] = image
+
+                if index % 2 == 0:
+                    assert messages[index]["role"] == "user"
+                    new_ccr = {
+                        "temperature": DEFAULT_TEMPERATURE,
+                        "max_tokens": DEFAULT_MAX_TOKENS,
+                        "messages": messages[: index + 1],
+                    }
+                    ref_answer: str = messages[index + 1]["content"]
+
+                    self.interactions.append(
+                        Interaction(
+                            request=new_ccr,
+                            reference_answer=ref_answer,
+                            meta={"category": category, "turn": index // 2},
+                        )
+                    )
+
+    def compute_metrics(self):
+        self.interactions = run_judge(self.judge, self.interactions)
+
+    def aggregate_metrics(self) -> dict[str, float]:
+        category_scores = defaultdict(list)
+        micro_average_score = float(
+            np.mean([interaction.metrics["score"] for interaction in self.interactions])
+        )
+        for interaction in self.interactions:
+            # TODO: rename to grade
+            score = interaction.metrics["score"]
+            category_scores[interaction.meta["category"]].append(
+                score
+            )  # average by question type
+            category_scores[interaction.meta["turn"]].append(score)  # average by turn
+        category_averages = {
+            f"{cat}_average": float(np.mean(v)) for cat, v in category_scores.items()
+        }
+        category_macro_average = float(np.mean(list(category_averages.values())))
+        return {
+            "micro_average_score": micro_average_score,
+            "macro_average_score": category_macro_average,
+            **category_averages,
+        }
+</file>
+
+<file path="eval/tasks/mmmu.py">
+from typing import Any
+
+import ast
+import re
+
+from PIL import Image
+
+from eval.metrics import (
+    Metric,
+    ExplicitPromptRelaxedCorrectness,
+    AnywhereInAnswerRelaxedCorrectness,
+)
+from eval.task import HuggingFaceEval, Interaction
+
+
+PROMPT = """Analyze the image and question carefully, using step-by-step reasoning.
+First, describe any image provided in detail. Then, present your reasoning. And finally your final answer in this format:
+Final Answer: <answer>
+where <answer> is:
+- The single correct letter choice A, B, C, D, E, F, etc. when options are provided. Only include the letter.
+- Your direct answer if no options are given, as a single phrase or number.
+- If your answer is a number, only include the number without any unit.
+- If your answer is a word or phrase, do not paraphrase or reformat the text you see in the image.
+- You cannot answer that the question is unanswerable. You must either pick an option or provide a direct answer.
+IMPORTANT: Remember, to end your answer with Final Answer: <answer>."""
+
+
+class MMMU(HuggingFaceEval):
+    dataset_name = "lmms-lab/MMMU"
+    dataset_split = "validation"
+
+    def _to_interaction(self, row: dict[str, Any]) -> Interaction:
+        content_chunks: list[dict[str, str | Image.Image]] = []
+
+        if row["question_type"] == "multiple-choice":
+            choices = ast.literal_eval(row["options"])
+            options = [chr(ord("A") + i) for i in range(len(choices))]
+            choices_str = "\n".join(
+                [f"{option}. {choice}" for option, choice in zip(options, choices)]
+            )
+            question = f"{row['question']}\n{choices_str}"
+        else:
+            question = row["question"]
+
+        # pattern to split string on <image x>:
+        split_pattern = r"(<image \d+>)"
+        # pattern to extract integer number to get image
+        match_pattern = r"<image (\d+)>"
+        text_img_chunks = re.split(pattern=split_pattern, string=question)
+        text_img_chunks = [chunk for chunk in text_img_chunks if chunk.strip()]
+
+        for chunk in text_img_chunks:
+            # check to see if img
+            match = re.fullmatch(match_pattern, chunk)
+
+            # treating an image chunk
+            if match:
+                img_id = int(match.group(1))  # ignore
+                img = row[f"image_{img_id}"]
+                content_chunks.append({"type": "image", "image": img})
+            else:
+                content_chunks.append({"type": "text", "text": chunk})
+
+        if content_chunks[-1]["type"] == "text":
+            assert isinstance(content_chunks[-1]["text"], str)
+            content_chunks[-1]["text"] += "\n" + PROMPT
+        else:
+            content_chunks.append({"type": "text", "text": PROMPT})
+
+        answer = (
+            ast.literal_eval(row["answer"]) if "[" in row["answer"] else [row["answer"]]
+        )
+
+        return Interaction(
+            {
+                "temperature": 0.0,
+                "max_tokens": 2048,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": content_chunks,
+                    }
+                ],
+            },
+            reference_answer=answer,
+        )
+
+    @property
+    def metric_fns(self) -> list[Metric]:
+        return [
+            ExplicitPromptRelaxedCorrectness(),
+            AnywhereInAnswerRelaxedCorrectness(),
+        ]
+</file>
+
+<file path="eval/tasks/vqav2.py">
+from typing import Any
+
+from datasets import load_dataset
+
+from eval.metrics import VQAMatch, Metric
+from eval.task import HuggingFaceEval, Interaction
+
+PROMPT = """- Answer the question using a single word, number, or short phrase. Use as few words as possible.
+- If the answer is a number, report it as a number, i.e. 2, not Two, and only include the number without any unit.
+- If the question is Yes/No, answer with Yes/No, and nothing else (no likely, unknown, etc.).
+- You cannot answer that the question is unanswerable. You must answer."""
+
+
+class VQAv2(HuggingFaceEval):
+    dataset_name = "HuggingFaceM4/VQAv2"
+    dataset_split = "validation"
+
+    def _to_interaction(self, row: Any) -> Interaction:
+        return Interaction(
+            {
+                "temperature": 0.0,
+                "max_tokens": 10,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "image", "image": row["image"]},
+                            {"type": "text", "text": row["question"] + "\n" + PROMPT},
+                        ],
+                    }
+                ],
+            },
+            reference_answer=row["answers"],
+        )
+
+    @property
+    def metric_fns(self) -> list[Metric]:
+        return [VQAMatch()]
+
+    def load_eval(self):
+        for row in load_dataset(self.dataset_name)[self.dataset_split]:
+            self.interactions.append(self._to_interaction(row))
+</file>
+
+<file path="eval/metrics.py">
+import re
+import string
+
+
+def _normalize_string(s):
+    if (s.startswith('"') and s.endswith('"')) or (
+        s.startswith("'") and s.endswith("'")
+    ):
+        return s[1:-1]
+    return s
+
+
+def _remove_end_punctuation(unnormalized_string: str) -> str:
+    while (
+        unnormalized_string
+        and (
+            unnormalized_string[-1] in string.punctuation
+            or unnormalized_string[-1].isspace()
+        )
+        and unnormalized_string[-1] != "%"
+    ):
+        unnormalized_string = unnormalized_string[:-1]
+    return unnormalized_string
+
+
+class Metric:
+    """Base class for metrics."""
+
+    @property
+    def name(self) -> str:
+        raise NotImplementedError
+
+    def score(self, model_answer: str, reference_answer: str | list[str]) -> float:
+        raise NotImplementedError
+
+
+class VQAMatch(Metric):
+    """VQA match metric which gives partial score if less than 3 answers are matched."""
+
+    @property
+    def name(self) -> str:
+        return "vqa_match"
+
+    def score(self, model_answer: str, reference_answer: str | list[str]) -> float:
+        if not isinstance(reference_answer, list):
+            reference_answer = [reference_answer]
+        normalize_response_text: str = _normalize_string(model_answer)
+        matching_answers = [
+            answer
+            for answer in reference_answer
+            if _normalize_string(answer) == normalize_response_text
+        ]
+        return min(1.0, float(len(matching_answers)) / 3)
+
+
+class ANLS(Metric):
+    @property
+    def name(self) -> str:
+        return "anls"
+
+    def _edit_distance_helper(self, s1: str, s2: str) -> float:
+        if len(s1) > len(s2):
+            s1, s2 = s2, s1
+        distances = list(range(len(s1) + 1))
+        for i2, c2 in enumerate(s2):
+            distance_list = [i2 + 1]
+            for i1, c1 in enumerate(s1):
+                if c1 == c2:
+                    distance_list.append(distances[i1])
+                else:
+                    distance_list.append(
+                        1 + min((distances[i1], distances[i1 + 1], distance_list[-1]))
+                    )
+            distances = distance_list
+        return distances[-1]
+
+    def score(self, model_answer: str, reference_answer: str | list[str]) -> float:
+        if not isinstance(reference_answer, list):
+            reference_answer = [reference_answer]
+
+        model_answer = " ".join(model_answer.strip().lower().split())
+        model_answer = _remove_end_punctuation(model_answer)
+
+        min_value = float("inf")
+        for ref in reference_answer:
+            # Post-processing: Normalize spaces and remove punctuations.
+            ref = " ".join(ref.strip().lower().split())
+            ref = _remove_end_punctuation(ref)
+
+            # Compute edit distance
+            dist = self._edit_distance_helper(ref, model_answer)
+            length = max(len(ref), len(model_answer))
+            value = 0.0 if length == 0 else float(dist) / float(length)
+            if value < min_value:
+                min_value = value
+
+        anls_threshold = 0.0
+        output = 0.0 if 1 - min_value < anls_threshold else 1 - min_value
+        return output
+
+
+class RelaxedCorrectness(Metric):
+    """Relaxed correctness metrics.
+
+    The correctness tolerates certain error ratio defined by max_relative_change.
+    See https://arxiv.org/pdf/2203.10244.pdf, end of section 5.1:
+    "Following Methani et al. (2020), we use a relaxed accuracy measure for the
+    numeric answers to allow a minor inaccuracy that may result from the automatic
+    data extraction process. We consider an answer to be correct if it is within
+    5% of the gold answer. For non-numeric answers, we still need an exact match
+    to consider an answer to be correct."
+    """
+
+    def _relaxed_correctness(
+        self, prediction: str, targets: list[str], max_relative_change: float = 0.05
+    ) -> float:
+        def _to_float(text: str) -> tuple[float | None, bool]:
+            text = text.strip()
+            is_percent = text.endswith("%")
+            try:
+                value = float(text.rstrip("%"))
+                return value, is_percent
+            except ValueError:
+                return None, False
+
+        def _is_letter(text: str) -> bool:
+            return text.isalpha() and len(text) == 1
+
+        def _preprocess_text(text: str) -> str:
+            if not any(char.isdigit() for char in text):
+                return _normalize_string(text)
+            else:
+                return _remove_end_punctuation(text).replace(",", "").replace("$", "")
+
+        def calculate_relative_change(prediction: float, target: float) -> float:
+            return abs(prediction - target) / max(abs(target), 1e-10)
+
+        def _compare_numeric_values(
+            prediction: float, target: float, max_relative_change: float
+        ) -> float:
+            relative_change = calculate_relative_change(prediction, target)
+            return 1.0 if relative_change <= max_relative_change else 0.0
+
+        def _compare_text_values(prediction: str, target: str) -> float:
+            return 1.0 if prediction.lower() == target.lower() else 0.0
+
+        def _to_decimal(value: float, is_percent: bool) -> float:
+            return value / 100 if is_percent else value
+
+        def _compare_numeric_with_percent(
+            prediction: float,
+            prediction_is_percent: bool,
+            target: float,
+            target_is_percent: bool,
+            max_relative_change: float,
+        ) -> float:
+            # Compare as-is
+            value = _compare_numeric_values(prediction, target, max_relative_change)
+
+            # If not equal and one is percent, try other comparisons
+            if value != 1.0 and (prediction_is_percent or target_is_percent):
+                value = max(
+                    value,
+                    _compare_numeric_values(
+                        _to_decimal(prediction, prediction_is_percent),
+                        target,
+                        max_relative_change,
+                    ),
+                    _compare_numeric_values(
+                        prediction,
+                        _to_decimal(target, target_is_percent),
+                        max_relative_change,
+                    ),
+                )
+            return value
+
+        prediction = _preprocess_text(prediction)
+        prediction_float, prediction_is_percent = _to_float(prediction)
+
+        value_list = []
+        for target in targets:
+            target = _preprocess_text(target)
+            target_float, target_is_percent = _to_float(target)
+
+            if prediction_float is not None and target_float is not None:
+                # Compare as numeric values
+                value = _compare_numeric_with_percent(
+                    prediction_float,
+                    prediction_is_percent,
+                    target_float,
+                    target_is_percent,
+                    max_relative_change,
+                )
+            elif _is_letter(target) and len(prediction) > 0:
+                # Compare as multiple choice options: take first letter from prediction
+                value = 1.0 if prediction[0].lower() == target.lower() else 0.0
+            else:
+                # Compare as text values
+                value = _compare_text_values(prediction, target)
+
+            value_list.append(value)
+
+        return max(value_list)
+
+    def score(self, model_answer: str, reference_answer: str | list[str]) -> float:
+        reference_answer = (
+            reference_answer
+            if isinstance(reference_answer, list)
+            else [reference_answer]
+        )
+        return self._relaxed_correctness(model_answer, reference_answer)
+
+
+class ExplicitPromptRelaxedCorrectness(RelaxedCorrectness):
+    """Relaxed correctness for explicit prompt."""
+
+    @property
+    def name(self) -> str:
+        return "explicit_prompt_relaxed_correctness"
+
+    def _get_final_answer(self, generation: str) -> str:
+        def _find_last_occurrence(pattern: str, string: str):
+            return string.rfind(pattern)
+
+        # Strip extraneous markdown around the answer:
+        generation = re.sub(r"([aA]nswer)\**:\**", "\\1:", generation)
+
+        final_answer_index = _find_last_occurrence("answer:", generation.lower())
+
+        if final_answer_index != -1:
+            # Find the start of the answer (after "final answer:")
+            start_index = final_answer_index + len("answer:")
+
+            # Split the remaining text into lines
+            lines = generation[start_index:].split("\n")
+
+            # Find the first non-empty line
+            final_answer = next((line.strip() for line in lines if line.strip()), "")
+
+            # Remove any markdown formatting
+            final_answer = re.sub(r"[*_\[\]\(\)]", "", final_answer)
+
+            return final_answer
+        else:
+            return ""
+
+    def score(self, model_answer: str, reference_answer: str | list[str]) -> float:
+        parsed_model_answer = self._get_final_answer(model_answer)
+        if not parsed_model_answer:
+            # Parsing failed.
+            return 0.0
+        return super().score(parsed_model_answer, reference_answer)
+
+
+class AnywhereInAnswerRelaxedCorrectness(ExplicitPromptRelaxedCorrectness):
+    """Falls back to handle cases where reference answer appears anywhere in generation.
+
+    NOTE: This is an overly generous metric and is likely to falsely inflate scores.
+    """
+
+    @property
+    def name(self) -> str:
+        return "anywhere_in_answer_relaxed_correctness"
+
+    def score(self, model_answer: str, reference_answer: str | list[str]) -> float:
+        reference_answer = (
+            reference_answer
+            if isinstance(reference_answer, list)
+            else [reference_answer]
+        )
+        parsed_model_answer = self._get_final_answer(model_answer)
+        if parsed_model_answer:
+            return self._relaxed_correctness(parsed_model_answer, reference_answer)
+
+        # Fallback: check if reference answer appears anywhere in the model answer.
+        for ref in reference_answer:
+            try:
+                # Try to parse as a float
+                number = float(ref)
+
+                # Revert to int if it is actually an int.
+                if int(number) == number:
+                    number = int(number)
+                # Check if the number is in the model answer with commas (e.g. 1,000)
+                if format(number, ",") in model_answer:
+                    return 1.0
+                # Check if the number is in the model answer without commas (e.g. 1000)
+                elif str(number) in model_answer:
+                    return 1.0
+                elif str(number) + "%" in model_answer:
+                    return 1.0
+            except ValueError:
+                # Reference answer was a text string. We search for typical patterns
+                # in the model answer. Note that directly searching for the reference
+                # is not a good idea for letter-option choice questions, hence we look
+                # for common patterns. This is still heuristic, and might have false
+                # positives as well as false negatives.
+                candidates = []
+                for ref in reference_answer:
+                    candidates.extend(
+                        [
+                            f"is {ref}",
+                            f"was {ref}",
+                            f" {ref}.",
+                            f"are {ref}",
+                            f"\n\n{ref}",
+                        ]
+                    )
+                if any([c.lower() in model_answer for c in candidates]):
+                    return 1.0
+
+        return 0
+</file>
+
+<file path="eval/models.py">
+from abc import ABC, abstractmethod
+import base64
+import copy
+import json
+import io
+import re
+import time
+from typing import Any
+
+import requests
+
+
+class Model(ABC):
+    @abstractmethod
+    def __call__(self, request: dict[str, Any]) -> str:
+        raise NotImplementedError
+
+
+class VLLMModel(Model):
+    """Evaluates a model hosted using vLLM."""
+
+    def __init__(self, model_name: str, url: str):
+        self.model_name = model_name
+        self.url = url
+        self._wait_till_healthy()
+
+    def _wait_till_healthy(self) -> bool:
+        base_url = self.url
+        # wait for server to be ready
+        assert base_url is not None
+        match = re.match(r"^http.*:\d+$", base_url)
+        assert match is not None, base_url
+
+        health_endpoint = f"{base_url}/health"
+        timeout = 120
+        t0 = time.time()
+        print(f"Waiting for VLLM server to come online at {health_endpoint} ...")
+        print(f"Timeout is {timeout}s")
+        while time.time() - t0 < timeout:
+            print(f"Waiting for server ({int(time.time() - t0)}s) ...")
+
+            # Query the endpoint
+            try:
+                req = requests.get(health_endpoint)
+                print("Server is up!")
+            except Exception:
+                # Ignore exception
+                pass
+            else:
+                if (
+                    req.status_code == 200
+                    and req.content == b""
+                    or req.json() == {"status": "OK"}
+                ):
+                    return True
+
+            # Backoff
+            time.sleep(5)
+
+        raise RuntimeError(
+            f"Server not up in {int(timeout / 60)} minutes, something is wrong"
+        )
+
+    def _emplace_image(self, ccr: dict[str, Any]):
+        """Replaces image message with base64 encoded image."""
+        ccr = copy.deepcopy(ccr)
+        for m in ccr["messages"]:
+            if isinstance(m["content"], list):
+                for c in m["content"]:
+                    if c["type"] == "image":
+                        c["type"] = "image_url"
+                        image = c.pop("image")
+                        stream = io.BytesIO()
+                        im_format = image.format or "PNG"
+                        image.save(stream, format=im_format)
+                        im_b64 = base64.b64encode(stream.getvalue()).decode("ascii")
+                        c["image_url"] = {
+                            "url": f"data:image/{im_format.lower()};base64,{im_b64}"
+                        }
+        return ccr
+
+    def __call__(self, request: dict[str, Any]) -> str:
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+
+        # Convert images to base64 strings so they can be serialized.
+        request_dict = self._emplace_image(request)
+
+        # Retry 3 times with backoff
+        max_retries = 3
+        retries_left = max_retries
+        backoff = 1.5
+        request_dict["model"] = self.model_name
+        while retries_left > 0:
+            try:
+                response = requests.post(
+                    f"{self.url}/v1/chat/completions",
+                    headers=headers,
+                    data=json.dumps(request_dict),
+                )
+
+                if response.status_code != 200:
+                    response_json = json.dumps(
+                        json.loads(response.content.decode("utf-8")), indent=4
+                    )
+                    raise ValueError(
+                        f"Request failed (code={response.status_code}):\n\nRESPONSE: {response_json}"
+                    )
+
+                completion_dict = response.json()
+                assert completion_dict["choices"][0]["message"]["role"] == "assistant"
+                return completion_dict["choices"][0]["message"]["content"]
+            except Exception as e:
+                print(
+                    f"Query to model failed, retrying ({max_retries - retries_left + 1} / {max_retries}): {e}",
+                )
+                time.sleep(backoff)
+                backoff *= 2
+                retries_left -= 1
+        # If querying server failed, raise an exception
+        raise RuntimeError("Failed to get a response.")
+</file>
+
+<file path="eval/run.py">
+import json
+from pathlib import Path
+
+import fire
+from eval.models import Model, VLLMModel
+from eval.tasks import get_task
+
+
+def evaluate(
+    model: Model,
+    eval_name: str,
+    output_dir: str | Path,
+):
+    """
+    Args:
+        model_fn: A callable that takes a chat completion request and queries a model
+        to get a text response.
+        eval_name: Name of an eval to run.
+        model_name: Name of model being evaluated (need to set this for API based evals)
+    """
+    eval_task = get_task(eval_name)
+
+    output_dir = Path(output_dir)
+    output_dir.mkdir(exist_ok=True, parents=True)
+
+    eval_task.load_eval()
+    eval_task.get_responses(model)
+    eval_task.compute_metrics()
+
+    metrics_output = json.dumps(eval_task.aggregate_metrics(), indent=4)
+    with (output_dir / f"{eval_name}.json").open("w") as f:
+        f.write(metrics_output)
+
+    print("=" * 80)
+    print("Metrics:")
+    print(metrics_output)
+    print("=" * 80)
+
+
+def eval_vllm(
+    model_name: str,
+    url: str,
+    eval_name: str,
+    output_dir: str | Path,
+):
+    model = VLLMModel(model_name, url)
+    evaluate(model, eval_name, output_dir)
+
+
+if __name__ == "__main__":
+    """Usage:
+
+    Step 1: Host a model using vLLM
+    >> vllm serve mistralai/Pixtral-12B-2409 --config_format mistral --tokenizer_mode "mistral"
+
+    Step 2: Evaluate hosted model.
+    >> python -m eval.run eval_vllm \
+            --model_name mistralai/Pixtral-12B-2409 \
+            --url http://0.0.0.0:8000 \
+            --output_dir_str ~/tmp \
+            --eval_name docvqa
+
+    To evaluate your own model, you can use create a ModelClass which implements an
+    interface for returning a generated response given a chat completion request.
+    """
+    fire.Fire({"eval_vllm": eval_vllm})
+</file>
+
+<file path="eval/task.py">
+from typing import Any, Optional
+
+import copy
+import dataclasses
+from abc import ABC, abstractmethod
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+import numpy as np
+from datasets import load_dataset
+from tqdm import tqdm
+
+from eval.metrics import Metric
+from eval.models import Model
+
+
+@dataclasses.dataclass
+class Interaction:
+    """A single round of interaction from a model given a chat completion request."""
+
+    # vLLM compatible chat completion request
+    request: dict[str, Any]
+
+    # Reference answer(s).
+    reference_answer: str | list[str]
+
+    # Generated answer from model.
+    model_answer: Optional[str] = None
+
+    # Computed metrics (filled in after model answers are generated).
+    metrics: dict[str, float] = dataclasses.field(default_factory=dict)
+
+    # Extra metadata from dataset (e.g. category).
+    meta: dict[str, Any] = dataclasses.field(default_factory=dict)
+
+
+class Eval(ABC):
+    """Base class for an eval task."""
+
+    def __init__(self):
+        self.interactions: list[Interaction] = []
+
+    @property
+    def metric_fns(self) -> list[Metric]:
+        """A list of metrics to compute for request-response pairs."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def _to_interaction(self, row: Any):
+        """Converts a row from eval dataset into Interaction object."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def load_eval(self):
+        """Loads dataset and applies transforms to get chat completion requests."""
+        raise NotImplementedError
+
+    def get_responses(self, model: Model):
+        """Queries model to get responses for each interaction."""
+
+        futures: dict[Future, Interaction] = {}
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            for interaction in self.interactions:
+                request = copy.deepcopy(interaction.request)
+                futures[executor.submit(model, request)] = interaction
+
+            interactions_w_model_ans = []
+            for future in tqdm(
+                as_completed(futures),
+                total=len(self.interactions),
+                desc="Querying model",
+            ):
+                interaction = futures[future]
+                interaction.model_answer = future.result()
+                interactions_w_model_ans.append(interaction)
+            self.interactions = interactions_w_model_ans
+
+    def compute_metrics(self):
+        """Computes metrics for each interaction."""
+        for interaction in tqdm(self.interactions):
+            for metric in self.metric_fns:
+                interaction.metrics[metric.name] = metric.score(
+                    interaction.model_answer, interaction.reference_answer
+                )
+
+    def aggregate_metrics(self) -> dict[str, float]:
+        """Aggregates metrics across all the interactions."""
+        overall_metrics: dict[str, float] = {}
+        for metric in self.metric_fns:
+            overall_metrics[metric.name] = np.mean(
+                [interaction.metrics[metric.name] for interaction in self.interactions]
+            )  # type: ignore
+        return overall_metrics
+
+
+class HuggingFaceEval(Eval):
+    """Evals hosted on hugging face for which datasets.load_dataset can be used."""
+
+    dataset_name: str
+    dataset_split: str
+
+    def get_dataset(self):
+        return load_dataset(self.dataset_name)[self.dataset_split]
+
+    def load_eval(self):
+        """Loads dataset and applies transforms to get chat completion requests."""
+        for row in tqdm(
+            self.get_dataset(),
+            desc=f"Loading {self.dataset_name} [{self.dataset_split}]",
+        ):
+            self.interactions.append(self._to_interaction(row))
+</file>
+
+<file path=".gitignore">
+__pycache__/
+</file>
+
+<file path="README.md">
+# Mistral Evals
+
+This repository contains code to run evals released by Mistral AI as well as standardized prompts, parsing and metrics computation for popular academic benchmarks.
+
+## Installation
+
+```
+pip install -r requirements.txt
+```
+
+## Evals
+
+We support the following evals in this repository:
+* `mm_mt_bench`:  [MM-MT-Bench](https://huggingface.co/datasets/mistralai/MM-MT-Bench) is a multi-turn LLM-as-a-judge evaluation task released by Mistral AI that uses GPT-4o for judging model answers given reference answers.
+* `vqav2`: [VQAv2](https://huggingface.co/datasets/HuggingFaceM4/VQAv2)
+* `docvqa`: [DocVQA](https://huggingface.co/datasets/lmms-lab/DocVQA)
+* `mathvista`: [MathVista](https://huggingface.co/datasets/AI4Math/MathVista)
+* `mmmu`: [MMMU](https://huggingface.co/datasets/lmms-lab/MMMU)
+* `chartqa`: [ChartQA](https://github.com/vis-nlp/ChartQA)
+
+### Example usage:
+
+**Step 1**: Host a model using vLLM
+
+To install vLLM, follow the directions [here](https://docs.vllm.ai/en/latest/getting_started/installation.html).
+
+```
+>> vllm serve mistralai/Pixtral-12B-2409 --config_format mistral --tokenizer_mode "mistral"
+```
+
+**Step 2**: Evaluate hosted model.
+```
+>> python -m eval.run eval_vllm \
+        --model_name mistralai/Pixtral-12B-2409 \
+        --url http://0.0.0.0:8000 \
+        --output_dir ~/tmp \
+        --eval_name "mm_mt_bench"
+```
+
+**NOTE**: Evaluating MM-MT-Bench requires calls to GPT-4o as a judge, hence you'll need
+to set the `OPENAI_API_KEY` environment variable for the eval to work.
+
+For evaluating the other supported evals, see the **Evals** section.
+
+#### Evaluating a non-vLLM model
+
+To evaluate your own model, you can also create a `Model` class which implements a `__call__` method which takes as input a chat completion request and returns a string answer. Requests are provided in [vLLM API format](https://docs.vllm.ai/en/latest/models/vlm.html#openai-vision-api).
+
+```
+class CustomModel(Model):
+
+    def __call__(self, request: dict[str, Any]):
+        # Your model code
+        ...
+        return answer
+```
+</file>
+
+<file path="requirements.txt">
+datasets==3.0.0
+fire==0.6.0
+numpy==1.26.4
+openai==1.45.0
+pillow==10.4.0
+tqdm==4.66.5
+vllm==0.6.2
+</file>
+
+</files>
+
+<git_diffs>
+<git_diff_work_tree>
+
+</git_diff_work_tree>
+<git_diff_staged>
+
+</git_diff_staged>
+</git_diffs>

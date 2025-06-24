@@ -1,0 +1,118 @@
+{
+  "summary": {
+    "total_repositories": 15,
+    "successful_repomix_downloads": 14,
+    "successful_issues_downloads": 15,
+    "successful_pulls_downloads": 15,
+    "successful_issue_comments_downloads": 15,
+    "successful_pull_comments_downloads": 15,
+    "timestamp": "2025-06-22 18:25:44"
+  },
+  "detailed_results": {
+    "mistral-common": {
+      "repomix": true,
+      "issues": true,
+      "pulls": true,
+      "issue_comments": true,
+      "pull_comments": true
+    },
+    "mistral-inference": {
+      "repomix": true,
+      "issues": true,
+      "pulls": true,
+      "issue_comments": true,
+      "pull_comments": true
+    },
+    "mistral-finetune": {
+      "repomix": true,
+      "issues": true,
+      "pulls": true,
+      "issue_comments": true,
+      "pull_comments": true
+    },
+    "cookbook": {
+      "repomix": true,
+      "issues": true,
+      "pulls": true,
+      "issue_comments": true,
+      "pull_comments": true
+    },
+    "client-python": {
+      "repomix": true,
+      "issues": true,
+      "pulls": true,
+      "issue_comments": true,
+      "pull_comments": true
+    },
+    "client-ts": {
+      "repomix": true,
+      "issues": true,
+      "pulls": true,
+      "issue_comments": true,
+      "pull_comments": true
+    },
+    "client-js": {
+      "repomix": true,
+      "issues": true,
+      "pulls": true,
+      "issue_comments": true,
+      "pull_comments": true
+    },
+    "platform-docs-public": {
+      "repomix": true,
+      "issues": true,
+      "pulls": true,
+      "issue_comments": true,
+      "pull_comments": true
+    },
+    "megablocks-public": {
+      "repomix": true,
+      "issues": true,
+      "pulls": true,
+      "issue_comments": true,
+      "pull_comments": true
+    },
+    "mistral-evals": {
+      "repomix": true,
+      "issues": true,
+      "pulls": true,
+      "issue_comments": true,
+      "pull_comments": true
+    },
+    "sagemaker-docs": {
+      "repomix": true,
+      "issues": true,
+      "pulls": true,
+      "issue_comments": true,
+      "pull_comments": true
+    },
+    "TensorRT-LLM": {
+      "repomix": false,
+      "issues": true,
+      "pulls": true,
+      "issue_comments": true,
+      "pull_comments": true
+    },
+    "vllm-release": {
+      "repomix": true,
+      "issues": true,
+      "pulls": true,
+      "issue_comments": true,
+      "pull_comments": true
+    },
+    "FastChat-release": {
+      "repomix": true,
+      "issues": true,
+      "pulls": true,
+      "issue_comments": true,
+      "pull_comments": true
+    },
+    "transformers-release": {
+      "repomix": true,
+      "issues": true,
+      "pulls": true,
+      "issue_comments": true,
+      "pull_comments": true
+    }
+  }
+}

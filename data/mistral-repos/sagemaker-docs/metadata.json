@@ -1,0 +1,25 @@
+{
+  "repository": {
+    "name": "sagemaker-docs",
+    "url": "https://github.com/mistralai/sagemaker-docs",
+    "description": "Mistral AI documentation for SageMaker",
+    "language": "Jupyter Notebook",
+    "stars": 1,
+    "priority": "low"
+  },
+  "download_status": {
+    "repomix_success": true,
+    "issues_success": true,
+    "pulls_success": true,
+    "issue_comments_success": true,
+    "pull_comments_success": true,
+    "timestamp": "2025-06-22 18:24:58"
+  },
+  "files": {
+    "repomix_output": "repomix-output.xml",
+    "github_issues": "github-issues.json",
+    "github_pulls": "github-pulls.json",
+    "github_issue_comments": "github-issue-comments.json",
+    "github_pull_comments": "github-pull-comments.json"
+  }
+}

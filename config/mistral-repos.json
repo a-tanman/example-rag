@@ -1,0 +1,124 @@
+{
+  "repositories": [
+    {
+      "name": "mistral-common",
+      "url": "https://github.com/mistralai/mistral-common",
+      "description": "Official inference library for pre-processing of Mistral models",
+      "language": "Python",
+      "stars": 744,
+      "priority": "high"
+    },
+    {
+      "name": "mistral-inference",
+      "url": "https://github.com/mistralai/mistral-inference",
+      "description": "Official inference library for Mistral models",
+      "language": "Jupyter Notebook",
+      "stars": 10000,
+      "priority": "high"
+    },
+    {
+      "name": "mistral-finetune",
+      "url": "https://github.com/mistralai/mistral-finetune",
+      "description": "Fine-tuning tools for Mistral models",
+      "language": "Python",
+      "stars": 3000,
+      "priority": "high"
+    },
+    {
+      "name": "cookbook",
+      "url": "https://github.com/mistralai/cookbook",
+      "description": "Examples and tutorials",
+      "language": "Jupyter Notebook",
+      "stars": 1800,
+      "priority": "high"
+    },
+    {
+      "name": "client-python",
+      "url": "https://github.com/mistralai/client-python",
+      "description": "Python client library for Mistral AI platform",
+      "language": "Python",
+      "stars": 610,
+      "priority": "medium"
+    },
+    {
+      "name": "client-ts",
+      "url": "https://github.com/mistralai/client-ts",
+      "description": "TS Client library for Mistral AI platform",
+      "language": "TypeScript",
+      "stars": 84,
+      "priority": "medium"
+    },
+    {
+      "name": "client-js",
+      "url": "https://github.com/mistralai/client-js",
+      "description": "JS Client library for Mistral AI platform (archived)",
+      "language": "JavaScript",
+      "stars": 193,
+      "priority": "medium"
+    },
+    {
+      "name": "platform-docs-public",
+      "url": "https://github.com/mistralai/platform-docs-public",
+      "description": "Platform documentation",
+      "language": "JavaScript",
+      "stars": 46,
+      "priority": "medium"
+    },
+    {
+      "name": "megablocks-public",
+      "url": "https://github.com/mistralai/megablocks-public",
+      "description": "MegaBlocks implementation",
+      "language": "Python",
+      "stars": 864,
+      "priority": "medium"
+    },
+    {
+      "name": "mistral-evals",
+      "url": "https://github.com/mistralai/mistral-evals",
+      "description": "Evaluation tools",
+      "language": "Python",
+      "stars": 73,
+      "priority": "low"
+    },
+    {
+      "name": "sagemaker-docs",
+      "url": "https://github.com/mistralai/sagemaker-docs",
+      "description": "Mistral AI documentation for SageMaker",
+      "language": "Jupyter Notebook",
+      "stars": 1,
+      "priority": "low"
+    },
+    {
+      "name": "TensorRT-LLM",
+      "url": "https://github.com/mistralai/TensorRT-LLM",
+      "description": "TensorRT-LLM optimizations for Mistral models",
+      "language": "C++",
+      "stars": 12,
+      "priority": "low"
+    },
+    {
+      "name": "vllm-release",
+      "url": "https://github.com/mistralai/vllm-release",
+      "description": "A high-throughput and memory-efficient inference and serving engine for LLMs",
+      "language": "Python",
+      "stars": 52,
+      "priority": "low"
+    },
+    {
+      "name": "FastChat-release",
+      "url": "https://github.com/mistralai/FastChat-release",
+      "description": "An open platform for training, serving, and evaluating large language models",
+      "language": "Python",
+      "stars": 46,
+      "priority": "low"
+    },
+    {
+      "name": "transformers-release",
+      "url": "https://github.com/mistralai/transformers-release",
+      "description": "🤗 Transformers: State-of-the-art Machine Learning for Pytorch, TensorFlow, and JAX",
+      "language": "Python",
+      "stars": 29,
+      "priority": "low"
+    }
+  ]
+}

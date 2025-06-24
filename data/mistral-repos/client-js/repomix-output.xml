@@ -1,0 +1,3116 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+The content has been processed where security check has been disabled.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Security check has been disabled - content may contain sensitive information
+- Files are sorted by Git change count (files with more changes are at the bottom)
+- Git diffs from the worktree and staged changes are included
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.github/
+  workflows/
+    build_publish.yaml
+examples/
+  chat-react/
+    public/
+      index.html
+    src/
+      App.js
+      index.js
+    .gitignore
+    package.json
+    README.md
+  typescript/
+    chat_with_streaming.ts
+    package.json
+    tsconfig.json
+  chat_no_streaming.js
+  chat_with_streaming.js
+  embeddings.js
+  file.jsonl
+  files.js
+  function_calling.js
+  jobs.js
+  json_format.js
+  list_models.js
+  package.json
+src/
+  client.d.ts
+  client.js
+  files.d.ts
+  files.js
+  jobs.d.ts
+  jobs.js
+tests/
+  client.test.js
+  files.test.js
+  jobs.test.js
+  utils.js
+.eslintrc.yml
+.gitignore
+.npmrc
+LICENSE
+package.json
+README.md
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path=".github/workflows/build_publish.yaml">
+name: Build and Publish
+
+on:
+  push:
+    branches: ["main"]
+
+    # We only deploy on tags and main branch
+    tags:
+      # Only run on tags that match the following regex
+      # This will match tags like 1.0.0, 1.0.1, etc.
+      - "[0-9]+.[0-9]+.[0-9]+"
+
+  # Build on pull requests
+  pull_request:
+
+jobs:
+  lint_and_test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18, 20, 22]
+
+    steps:
+      # Checkout the repository
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Set node version
+      - name: set node version
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      # Install Build stuff
+      - name: Install Dependencies
+        run: |
+          npm install
+
+        # Eslint
+      - name: ESlint check
+        run: |
+          npm run lint
+
+        # Run tests
+      - name: Run tests
+        run: |
+          npm run test
+
+        # Build TypeScript Examples
+      - name: Build typescript examples
+        run: |
+          cd examples/typescript
+          npm install
+          npx tsc --build --verbose tsconfig.json
+
+  publish:
+    needs: lint_and_test
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags')
+
+    steps:
+      # Checkout the repository
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Set node version
+      - name: set node version
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      # Publish module
+      - name: Publish
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" >> .npmrc
+          npm publish
+</file>
+
+<file path="examples/chat-react/public/index.html">
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+    <title>Mistral AI React Example</title>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    <!--
+      This HTML file is a template.
+      If you open it directly in the browser, you will see an empty page.
+
+      You can add webfonts, meta tags, or analytics to this file.
+      The build step will place the bundled scripts into the <body> tag.
+
+      To begin the development, run `npm start` or `yarn start`.
+      To create a production bundle, use `npm run build` or `yarn build`.
+    -->
+  </body>
+</html>
+</file>
+
+<file path="examples/chat-react/src/App.js">
+import MistralClient from "@mistralai/mistralai";
+
+function App() {
+
+  const doChatStream = async function() {
+
+    const apiKey = document.getElementById("apiKey").value;
+    const chat = document.getElementById("chat").value;
+
+    const client = new MistralClient(apiKey);
+
+    document.getElementById("output").innerHTML = "";
+    document.getElementById("error").innerHTML = "";
+
+    try {
+      const chatStreamResponse = await client.chatStream({
+        model: 'mistral-tiny',
+        messages: [{role: 'user', content: chat}],
+      });
+
+      for await (const chunk of chatStreamResponse) {
+        if (chunk.choices[0].delta.content !== undefined) {
+          let streamText = chunk.choices[0].delta.content;
+          streamText = streamText.replace(/(?:\r\n|\r|\n)/g, '<br>');
+          document.getElementById("output").innerHTML += streamText;
+        }
+      }
+    }
+    catch (e) {
+      document.getElementById("error").innerHTML += e;
+    }
+  };
+
+  return (
+    <div className="App">
+    <section className="section">
+        <div className="container">
+            <h1 className="title has-text-centered">Web Stream Example</h1>
+            <div className="field">
+                <label className="label" htmlFor="apiKey">API Key</label>
+                <div className="control">
+                    <input className="input" type="text" id="apiKey" name="apiKey" placeholder="API Key"/>
+                </div>
+            </div>
+            <div id="output" className="message is-info"></div>
+
+            <div className="field">
+                <label className="label" htmlFor="question">Question</label>
+                <div className="control">
+                    <input className="input" type="text" id="chat" name="question" placeholder="Enter your question"/>
+                </div>
+            </div>
+            <div className="field">
+                <div className="control">
+                    <button className="button is-primary" onClick={doChatStream}>Submit</button>
+                </div>
+            </div>
+            
+            <div id="error" className="message is-danger"></div>
+        </div>
+    </section>
+</div>
+  );
+}
+
+export default App;
+</file>
+
+<file path="examples/chat-react/src/index.js">
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+</file>
+
+<file path="examples/chat-react/.gitignore">
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# production
+/build
+
+# misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+</file>
+
+<file path="examples/chat-react/package.json">
+{
+  "name": "example",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@mistralai/mistralai": "file:../../",
+    "bulma": "^0.9.4",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1",
+    "@babel/plugin-proposal-private-property-in-object": "^7.16.7"
+  },
+  "scripts": {
+    "start": "react-scripts start"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
+</file>
+
+<file path="examples/chat-react/README.md">
+# Mistral AI JS Client Web Demo
+
+A demo of the Mistral AI client being used in a React App.
+
+## Installation
+
+```bash
+npm install
+```
+
+## Usage
+
+```bash
+npm start
+```
+
+This will start a web-browser instance. 
+
+### API Key Setup
+
+Running the examples requires a Mistral AI API key.
+
+1. Get your own Mistral API Key: <https://docs.mistral.ai/#api-access>
+2. Set your Mistral API Key as an environment variable. You only need to do this once.
+
+```bash
+# set Mistral API Key (using zsh for example)
+$ echo 'export MISTRAL_API_KEY=[your_key_here]' >> ~/.zshenv
+
+# reload the environment (or just quit and open a new terminal)
+$ source ~/.zshenv
+```
+</file>
+
+<file path="examples/typescript/chat_with_streaming.ts">
+import MistralClient from '@mistralai/mistralai';
+
+const apiKey = process.env.MISTRAL_API_KEY;
+
+const client = new MistralClient(apiKey);
+
+const responseInterface = '{"best": string, "reasoning": string}';
+const chatStreamResponse = client.chatStream({
+  model: 'open-mistral-7b',
+  responseFormat: {type: 'json_object'},
+  messages: [{
+    role: 'user', content: `
+    What is the best French cheese?
+    Answer in ${responseInterface} format`,
+  }],
+});
+
+console.log('Chat Stream:');
+for await (const chunk of chatStreamResponse) {
+  if (chunk.choices[0].delta.content !== undefined) {
+    const streamText = chunk.choices[0].delta.content;
+    process.stdout.write(streamText);
+  }
+}
+</file>
+
+<file path="examples/typescript/package.json">
+{
+  "name": "@mistralai/client-examples-ts",
+  "type": "module",
+  "dependencies": {
+    "@mistralai/mistralai": "file:../..",
+    "tsx": "^4.9.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}
+</file>
+
+<file path="examples/typescript/tsconfig.json">
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true
+  }
+}
+</file>
+
+<file path="examples/chat_no_streaming.js">
+import MistralClient from '@mistralai/mistralai';
+
+const apiKey = process.env.MISTRAL_API_KEY;
+
+const client = new MistralClient(apiKey);
+
+const chatResponse = await client.chat({
+  model: 'mistral-tiny',
+  messages: [{role: 'user', content: 'What is the best French cheese?'}],
+});
+
+console.log('Chat:', chatResponse.choices[0].message.content);
+</file>
+
+<file path="examples/chat_with_streaming.js">
+import MistralClient from '@mistralai/mistralai';
+
+const apiKey = process.env.MISTRAL_API_KEY;
+
+const client = new MistralClient(apiKey);
+
+const chatStreamResponse = client.chatStream({
+  model: 'mistral-tiny',
+  messages: [{role: 'user', content: 'What is the best French cheese?'}],
+});
+
+console.log('Chat Stream:');
+for await (const chunk of chatStreamResponse) {
+  if (chunk.choices[0].delta.content !== undefined) {
+    const streamText = chunk.choices[0].delta.content;
+    process.stdout.write(streamText);
+  }
+}
+</file>
+
+<file path="examples/embeddings.js">
+import MistralClient from '@mistralai/mistralai';
+
+const apiKey = process.env.MISTRAL_API_KEY;
+
+const client = new MistralClient(apiKey);
+
+const input = [];
+for (let i = 0; i < 1; i++) {
+  input.push('What is the best French cheese?');
+}
+
+const embeddingsBatchResponse = await client.embeddings({
+  model: 'mistral-embed',
+  input: input,
+});
+
+console.log('Embeddings Batch:', embeddingsBatchResponse.data);
+</file>
+
+<file path="examples/file.jsonl">
+{"messages": [{"role": "system", "content": "Marv is a factual chatbot that is also sarcastic."}, {"role": "user", "content": "What's the capital of France?"}, {"role": "assistant", "content": "Paris, as if everyone doesn't know that already."}]}
+{"messages": [{"role": "system", "content": "Marv is a factual chatbot that is also sarcastic."}, {"role": "user", "content": "Who wrote 'Romeo and Juliet'?"}, {"role": "assistant", "content": "Oh, just some guy named William Shakespeare. Ever heard of him?"}]}
+{"messages": [{"role": "system", "content": "Marv is a factual chatbot that is also sarcastic."}, {"role": "user", "content": "How far is the Moon from Earth?"}, {"role": "assistant", "content": "Around 384,400 kilometers. Give or take a few, like that really matters.", "weight": 0}]}
+</file>
+
+<file path="examples/files.js">
+import MistralClient from '@mistralai/mistralai';
+import * as fs from 'fs';
+
+
+const apiKey = process.env.MISTRAL_API_KEY;
+
+const client = new MistralClient(apiKey);
+
+// Create a new file
+const blob = new Blob(
+  [fs.readFileSync('file.jsonl')],
+  {type: 'application/json'},
+);
+const createdFile = await client.files.create({file: blob});
+console.log(createdFile);
+
+// List files
+const files = await client.files.list();
+console.log(files);
+
+// Retrieve a file
+const retrievedFile = await client.files.retrieve({fileId: createdFile.id});
+console.log(retrievedFile);
+
+// Delete a file
+const deletedFile = await client.files.delete({fileId: createdFile.id});
+console.log(deletedFile);
+</file>
+
+<file path="examples/function_calling.js">
+import MistralClient from '@mistralai/mistralai';
+
+const apiKey = process.env.MISTRAL_API_KEY;
+
+// Assuming we have the following data
+const data = {
+  transactionId: ['T1001', 'T1002', 'T1003', 'T1004', 'T1005'],
+  customerId: ['C001', 'C002', 'C003', 'C002', 'C001'],
+  paymentAmount: [125.5, 89.99, 120.0, 54.3, 210.2],
+  paymentDate: [
+    '2021-10-05',
+    '2021-10-06',
+    '2021-10-07',
+    '2021-10-05',
+    '2021-10-08',
+  ],
+  paymentStatus: ['Paid', 'Unpaid', 'Paid', 'Paid', 'Pending'],
+};
+
+/**
+ * This function retrieves the payment status of a transaction id.
+ * @param {object} data - The data object.
+ * @param {string} transactionId - The transaction id.
+ * @return {string} - The payment status.
+ */
+function retrievePaymentStatus({data, transactionId}) {
+  const transactionIndex = data.transactionId.indexOf(transactionId);
+  if (transactionIndex != -1) {
+    return JSON.stringify({status: data.paymentStatus[transactionIndex]});
+  } else {
+    return JSON.stringify({status: 'error - transaction id not found.'});
+  }
+}
+
+/**
+ * This function retrieves the payment date of a transaction id.
+ * @param {object} data - The data object.
+ * @param {string} transactionId - The transaction id.
+ * @return {string} - The payment date.
+ *
+ */
+function retrievePaymentDate({data, transactionId}) {
+  const transactionIndex = data.transactionId.indexOf(transactionId);
+  if (transactionIndex != -1) {
+    return JSON.stringify({status: data.payment_date[transactionIndex]});
+  } else {
+    return JSON.stringify({status: 'error - transaction id not found.'});
+  }
+}
+
+const namesToFunctions = {
+  retrievePaymentStatus: (transactionId) =>
+    retrievePaymentStatus({data, ...transactionId}),
+  retrievePaymentDate: (transactionId) =>
+    retrievePaymentDate({data, ...transactionId}),
+};
+
+const tools = [
+  {
+    type: 'function',
+    function: {
+      name: 'retrievePaymentStatus',
+      description: 'Get payment status of a transaction id',
+      parameters: {
+        type: 'object',
+        required: ['transactionId'],
+        properties: {
+          transactionId: {type: 'string', description: 'The transaction id.'},
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'retrievePaymentDate',
+      description: 'Get payment date of a transaction id',
+      parameters: {
+        type: 'object',
+        required: ['transactionId'],
+        properties: {
+          transactionId: {type: 'string', description: 'The transaction id.'},
+        },
+      },
+    },
+  },
+];
+
+const model = 'mistral-small-latest';
+
+const client = new MistralClient(apiKey);
+
+const messages = [
+  {role: 'user', content: 'What\'s the status of my transaction?'},
+];
+
+let response = await client.chat({
+  model: model,
+  messages: messages,
+  tools: tools,
+});
+
+console.log(response.choices[0].message.content);
+
+messages.push({
+  role: 'assistant',
+  content: response.choices[0].message.content,
+});
+messages.push({role: 'user', content: 'My transaction ID is T1001.'});
+
+response = await client.chat({
+  model: model,
+  messages: messages,
+  tools: tools,
+});
+
+const toolCall = response.choices[0].message.tool_calls[0];
+const functionName = toolCall.function.name;
+const functionParams = JSON.parse(toolCall.function.arguments);
+
+console.log(`calling functionName: ${functionName}`);
+console.log(`functionParams: ${toolCall.function.arguments}`);
+
+const functionResult = namesToFunctions[functionName](functionParams);
+
+messages.push(response.choices[0].message);
+messages.push({
+  role: 'tool',
+  name: functionName,
+  content: functionResult,
+  tool_call_id: toolCall.id,
+});
+
+response = await client.chat({
+  model: model,
+  messages: messages,
+  tools: tools,
+});
+
+console.log(response.choices[0].message.content);
+</file>
+
+<file path="examples/jobs.js">
+import MistralClient from '@mistralai/mistralai';
+import * as fs from 'fs';
+
+
+const apiKey = process.env.MISTRAL_API_KEY;
+
+const client = new MistralClient(apiKey);
+
+// Create a new file
+const blob = new Blob(
+  [fs.readFileSync('file.jsonl')],
+  {type: 'application/json'},
+);
+const createdFile = await client.files.create({file: blob});
+
+// Create a new job
+const hyperparameters = {
+  training_steps: 10,
+  learning_rate: 0.0001,
+};
+const createdJob = await client.jobs.create({
+  model: 'open-mistral-7b',
+  trainingFiles: [createdFile.id],
+  validationFiles: [createdFile.id],
+  hyperparameters,
+});
+console.log(createdJob);
+
+// List jobs
+const jobs = await client.jobs.list();
+console.log(jobs);
+
+// Retrieve a job
+const retrievedJob = await client.jobs.retrieve({jobId: createdJob.id});
+console.log(retrievedJob);
+
+// Cancel a job
+const canceledJob = await client.jobs.cancel({jobId: createdJob.id});
+console.log(canceledJob);
+</file>
+
+<file path="examples/json_format.js">
+import MistralClient from '@mistralai/mistralai';
+
+const apiKey = process.env.MISTRAL_API_KEY;
+
+const client = new MistralClient(apiKey);
+
+const chatResponse = await client.chat({
+  model: 'mistral-large-latest',
+  messages: [{role: 'user', content: 'What is the best French cheese?'}],
+  responseFormat: {type: 'json_object'},
+});
+
+console.log('Chat:', chatResponse.choices[0].message.content);
+</file>
+
+<file path="examples/list_models.js">
+import MistralClient from '@mistralai/mistralai';
+
+const apiKey = process.env.MISTRAL_API_KEY;
+
+const client = new MistralClient(apiKey);
+
+const listModelsResponse = await client.listModels();
+
+listModelsResponse.data.forEach((model) => {
+  console.log('Model:', model);
+});
+</file>
+
+<file path="examples/package.json">
+{
+    "name": "mistralai client examples",
+    "version": "1.0.0",
+    "description": "",
+    "type": "module",
+    "dependencies": {
+      "@mistralai/mistralai": "file:../"
+    },
+    "keywords": []
+  }
+</file>
+
+<file path="src/client.d.ts">
+declare module "@mistralai/mistralai" {
+  export interface ModelPermission {
+    id: string;
+    object: "model_permission";
+    created: number;
+    allow_create_engine: boolean;
+    allow_sampling: boolean;
+    allow_logprobs: boolean;
+    allow_search_indices: boolean;
+    allow_view: boolean;
+    allow_fine_tuning: boolean;
+    organization: string;
+    group: string | null;
+    is_blocking: boolean;
+  }
+
+  export interface Model {
+    id: string;
+    object: "model";
+    created: number;
+    owned_by: string;
+    root: string | null;
+    parent: string | null;
+    permission: ModelPermission[];
+  }
+
+  export interface ListModelsResponse {
+    object: "list";
+    data: Model[];
+  }
+
+  export interface Function {
+    name: string;
+    description: string;
+    parameters: object;
+  }
+
+  export interface FunctionCall {
+    name: string;
+    arguments: string;
+  }
+
+  export interface ToolCalls {
+    id: string;
+    function: FunctionCall;
+  }
+
+  export interface ResponseFormat {
+    type: "json_object";
+  }
+
+  export interface TokenUsage {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  }
+
+  export interface ChatCompletionResponseChoice {
+    index: number;
+    message: {
+      role: string;
+      content: string;
+      tool_calls: null | ToolCalls[];
+    };
+    finish_reason: string;
+  }
+
+  export interface ChatCompletionResponseChunkChoice {
+    index: number;
+    delta: {
+      role?: string;
+      content?: string;
+      tool_calls?: ToolCalls[];
+    };
+    finish_reason: string;
+  }
+
+  export interface ChatCompletionResponse {
+    id: string;
+    object: "chat.completion";
+    created: number;
+    model: string;
+    choices: ChatCompletionResponseChoice[];
+    usage: TokenUsage;
+  }
+
+  export interface ChatCompletionResponseChunk {
+    id: string;
+    object: "chat.completion.chunk";
+    created: number;
+    model: string;
+    choices: ChatCompletionResponseChunkChoice[];
+    usage: TokenUsage | null;
+  }
+
+  export interface Embedding {
+    id: string;
+    object: "embedding";
+    embedding: number[];
+  }
+
+  export interface EmbeddingResponse {
+    id: string;
+    object: "list";
+    data: Embedding[];
+    model: string;
+    usage: TokenUsage;
+  }
+
+  export type Message =
+    | {
+        role: "system" | "user" | "assistant";
+        content: string | string[];
+      }
+    | {
+        role: "tool";
+        content: string | string[];
+        name: string;
+        tool_call_id: string;
+      };
+
+  export interface Tool {
+    type: "function";
+    function: Function;
+  }
+
+  export interface ChatRequest {
+    model: string;
+    messages: Array<Message>;
+    tools?: Array<Tool>;
+    temperature?: number;
+    maxTokens?: number;
+    topP?: number;
+    randomSeed?: number;
+    /**
+     * @deprecated use safePrompt instead
+     */
+    safeMode?: boolean;
+    safePrompt?: boolean;
+    toolChoice?: "auto" | "any" | "none";
+    responseFormat?: ResponseFormat;
+  }
+
+  export interface CompletionRequest {
+    model: string;
+    prompt: string;
+    suffix?: string;
+    temperature?: number;
+    maxTokens?: number;
+    topP?: number;
+    randomSeed?: number;
+    stop?: string | string[];
+  }
+
+  export interface ChatRequestOptions {
+    signal?: AbortSignal;
+  }
+
+  class MistralClient {
+    apiKey: string;
+    endpoint: string;
+    maxRetries: number;
+    timeout: number;
+
+    constructor(
+      apiKey?: string,
+      endpoint?: string,
+      maxRetries?: number,
+      timeout?: number
+    );
+
+    listModels(): Promise<ListModelsResponse>;
+
+    chat(
+      request: ChatRequest,
+      options?: ChatRequestOptions
+    ): Promise<ChatCompletionResponse>;
+
+    chatStream(
+      request: ChatRequest,
+      options?: ChatRequestOptions
+    ): AsyncGenerator<ChatCompletionResponseChunk, void>;
+
+    completion(
+      request: CompletionRequest,
+      options?: ChatRequestOptions
+    ): Promise<ChatCompletionResponse>;
+
+    completionStream(
+      request: CompletionRequest,
+      options?: ChatRequestOptions
+    ): AsyncGenerator<ChatCompletionResponseChunk, void>;
+
+    embeddings(options: {
+      model: string;
+      input: string | string[];
+    }): Promise<EmbeddingResponse>;
+  }
+
+  export default MistralClient;
+}
+</file>
+
+<file path="src/client.js">
+import FilesClient from './files.js';
+import JobsClient from './jobs.js';
+
+const VERSION = '0.5.0';
+const RETRY_STATUS_CODES = [429, 500, 502, 503, 504];
+const ENDPOINT = 'https://api.mistral.ai';
+
+// We can't use a top level await if eventually this is to be converted
+// to typescript and compiled to commonjs, or similarly using babel.
+const configuredFetch = Promise.resolve(
+  globalThis.fetch ?? import('node-fetch').then((m) => m.default),
+);
+
+/**
+ * MistralAPIError
+ * @return {MistralAPIError}
+ * @extends {Error}
+ */
+class MistralAPIError extends Error {
+  /**
+   * A simple error class for Mistral API errors
+   * @param {*} message
+   */
+  constructor(message) {
+    super(message);
+    this.name = 'MistralAPIError';
+  }
+}
+
+/**
+ * @param {Array<AbortSignal|undefined>} signals to merge
+ * @return {AbortSignal} signal which will abort when any of signals abort
+ */
+function combineSignals(signals) {
+  const controller = new AbortController();
+  signals.forEach((signal) => {
+    if (!signal) {
+      return;
+    }
+
+    signal.addEventListener(
+      'abort',
+      () => {
+        controller.abort(signal.reason);
+      },
+      {once: true},
+    );
+
+    if (signal.aborted) {
+      controller.abort(signal.reason);
+    }
+  });
+
+  return controller.signal;
+}
+
+/**
+ * MistralClient
+ * @return {MistralClient}
+ */
+class MistralClient {
+  /**
+   * A simple and lightweight client for the Mistral API
+   * @param {*} apiKey can be set as an environment variable MISTRAL_API_KEY,
+   * or provided in this parameter
+   * @param {*} endpoint defaults to https://api.mistral.ai
+   * @param {*} maxRetries defaults to 5
+   * @param {*} timeout defaults to 120 seconds
+   */
+  constructor(
+    apiKey = process.env.MISTRAL_API_KEY,
+    endpoint = ENDPOINT,
+    maxRetries = 5,
+    timeout = 120,
+  ) {
+    this.endpoint = endpoint;
+    this.apiKey = apiKey;
+
+    this.maxRetries = maxRetries;
+    this.timeout = timeout;
+
+    if (this.endpoint.indexOf('inference.azure.com')) {
+      this.modelDefault = 'mistral';
+    }
+
+    this.files = new FilesClient(this);
+    this.jobs = new JobsClient(this);
+  }
+
+  /**
+   * @return {Promise}
+   * @private
+   * @param {...*} args - fetch args
+   * hook point for non-global fetch override
+   */
+  async _fetch(...args) {
+    const fetchFunc = await configuredFetch;
+    return fetchFunc(...args);
+  }
+
+  /**
+   *
+   * @param {*} method
+   * @param {*} path
+   * @param {*} request
+   * @param {*} signal
+   * @param {*} formData
+   * @return {Promise<*>}
+   */
+  _request = async function(method, path, request, signal, formData = null) {
+    const url = `${this.endpoint}/${path}`;
+    const options = {
+      method: method,
+      headers: {
+        'User-Agent': `mistral-client-js/${VERSION}`,
+        'Accept': request?.stream ? 'text/event-stream' : 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.apiKey}`,
+      },
+      signal: combineSignals([
+        AbortSignal.timeout(this.timeout * 1000),
+        signal,
+      ]),
+      body: method !== 'get' ? formData ?? JSON.stringify(request) : null,
+      timeout: this.timeout * 1000,
+    };
+
+    if (formData) {
+      delete options.headers['Content-Type'];
+    }
+
+    for (let attempts = 0; attempts < this.maxRetries; attempts++) {
+      try {
+        const response = await this._fetch(url, options);
+
+        if (response.ok) {
+          if (request?.stream) {
+            // When using node-fetch or test mocks, getReader is not defined
+            if (typeof response.body.getReader === 'undefined') {
+              return response.body;
+            } else {
+              const reader = response.body.getReader();
+              // Chrome does not support async iterators yet, so polyfill it
+              const asyncIterator = async function* () {
+                try {
+                  while (true) {
+                    // Read from the stream
+                    const {done, value} = await reader.read();
+                    // Exit if we're done
+                    if (done) return;
+                    // Else yield the chunk
+                    yield value;
+                  }
+                } finally {
+                  reader.releaseLock();
+                }
+              };
+
+              return asyncIterator();
+            }
+          }
+          return await response.json();
+        } else if (RETRY_STATUS_CODES.includes(response.status)) {
+          console.debug(
+            `Retrying request on response status: ${response.status}`,
+            `Response: ${await response.text()}`,
+            `Attempt: ${attempts + 1}`,
+          );
+          // eslint-disable-next-line max-len
+          await new Promise((resolve) =>
+            setTimeout(resolve, Math.pow(2, attempts + 1) * 500),
+          );
+        } else {
+          throw new MistralAPIError(
+            `HTTP error! status: ${response.status} ` +
+              `Response: \n${await response.text()}`,
+          );
+        }
+      } catch (error) {
+        console.error(`Request failed: ${error.message}`);
+        if (error.name === 'MistralAPIError') {
+          throw error;
+        }
+        if (attempts === this.maxRetries - 1) throw error;
+        // eslint-disable-next-line max-len
+        await new Promise((resolve) =>
+          setTimeout(resolve, Math.pow(2, attempts + 1) * 500),
+        );
+      }
+    }
+    throw new Error('Max retries reached');
+  };
+
+  /**
+   * Creates a chat completion request
+   * @param {*} model
+   * @param {*} messages
+   * @param {*} tools
+   * @param {*} temperature
+   * @param {*} maxTokens
+   * @param {*} topP
+   * @param {*} randomSeed
+   * @param {*} stream
+   * @param {*} safeMode deprecated use safePrompt instead
+   * @param {*} safePrompt
+   * @param {*} toolChoice
+   * @param {*} responseFormat
+   * @return {Promise<Object>}
+   */
+  _makeChatCompletionRequest = function(
+    model,
+    messages,
+    tools,
+    temperature,
+    maxTokens,
+    topP,
+    randomSeed,
+    stream,
+    safeMode,
+    safePrompt,
+    toolChoice,
+    responseFormat,
+  ) {
+    // if modelDefault and model are undefined, throw an error
+    if (!model && !this.modelDefault) {
+      throw new MistralAPIError('You must provide a model name');
+    }
+    return {
+      model: model ?? this.modelDefault,
+      messages: messages,
+      tools: tools ?? undefined,
+      temperature: temperature ?? undefined,
+      max_tokens: maxTokens ?? undefined,
+      top_p: topP ?? undefined,
+      random_seed: randomSeed ?? undefined,
+      stream: stream ?? undefined,
+      safe_prompt: (safeMode || safePrompt) ?? undefined,
+      tool_choice: toolChoice ?? undefined,
+      response_format: responseFormat ?? undefined,
+    };
+  };
+
+  /**
+   * Creates a completion request
+   * @param {*} model
+   * @param {*} prompt
+   * @param {*} suffix
+   * @param {*} temperature
+   * @param {*} maxTokens
+   * @param {*} topP
+   * @param {*} randomSeed
+   * @param {*} stop
+   * @param {*} stream
+   * @return {Promise<Object>}
+   */
+  _makeCompletionRequest = function(
+    model,
+    prompt,
+    suffix,
+    temperature,
+    maxTokens,
+    topP,
+    randomSeed,
+    stop,
+    stream,
+  ) {
+    // if modelDefault and model are undefined, throw an error
+    if (!model && !this.modelDefault) {
+      throw new MistralAPIError('You must provide a model name');
+    }
+    return {
+      model: model ?? this.modelDefault,
+      prompt: prompt,
+      suffix: suffix ?? undefined,
+      temperature: temperature ?? undefined,
+      max_tokens: maxTokens ?? undefined,
+      top_p: topP ?? undefined,
+      random_seed: randomSeed ?? undefined,
+      stop: stop ?? undefined,
+      stream: stream ?? undefined,
+    };
+  };
+
+  /**
+   * Returns a list of the available models
+   * @return {Promise<Object>}
+   */
+  listModels = async function() {
+    const response = await this._request('get', 'v1/models');
+    return response;
+  };
+
+  /**
+   * A chat endpoint without streaming.
+   *
+   * @param {Object} data - The main chat configuration.
+   * @param {*} data.model - the name of the model to chat with,
+   *                         e.g. mistral-tiny
+   * @param {*} data.messages - an array of messages to chat with, e.g.
+   *                            [{role: 'user', content: 'What is the best
+   *                            French cheese?'}]
+   * @param {*} data.tools - a list of tools to use.
+   * @param {*} data.temperature - the temperature to use for sampling, e.g. 0.5
+   * @param {*} data.maxTokens - the maximum number of tokens to generate,
+   *                             e.g. 100
+   * @param {*} data.topP - the cumulative probability of tokens to generate,
+   *                        e.g. 0.9
+   * @param {*} data.randomSeed - the random seed to use for sampling, e.g. 42
+   * @param {*} data.safeMode - deprecated use safePrompt instead
+   * @param {*} data.safePrompt - whether to use safe mode, e.g. true
+   * @param {*} data.toolChoice - the tool to use, e.g. 'auto'
+   * @param {*} data.responseFormat - the format of the response,
+   *                                  e.g. 'json_format'
+   * @param {Object} options - Additional operational options.
+   * @param {*} [options.signal] - optional AbortSignal instance to control
+   *                               request The signal will be combined with
+   *                               default timeout signal
+   * @return {Promise<Object>}
+   */
+  chat = async function(
+    {
+      model,
+      messages,
+      tools,
+      temperature,
+      maxTokens,
+      topP,
+      randomSeed,
+      safeMode,
+      safePrompt,
+      toolChoice,
+      responseFormat,
+    },
+    {signal} = {},
+  ) {
+    const request = this._makeChatCompletionRequest(
+      model,
+      messages,
+      tools,
+      temperature,
+      maxTokens,
+      topP,
+      randomSeed,
+      false,
+      safeMode,
+      safePrompt,
+      toolChoice,
+      responseFormat,
+    );
+    const response = await this._request(
+      'post',
+      'v1/chat/completions',
+      request,
+      signal,
+    );
+    return response;
+  };
+
+  /**
+   * A chat endpoint that streams responses.
+   *
+   * @param {Object} data - The main chat configuration.
+   * @param {*} data.model - the name of the model to chat with,
+   *                         e.g. mistral-tiny
+   * @param {*} data.messages - an array of messages to chat with, e.g.
+   *                            [{role: 'user', content: 'What is the best
+   *                            French cheese?'}]
+   * @param {*} data.tools - a list of tools to use.
+   * @param {*} data.temperature - the temperature to use for sampling, e.g. 0.5
+   * @param {*} data.maxTokens - the maximum number of tokens to generate,
+   *                             e.g. 100
+   * @param {*} data.topP - the cumulative probability of tokens to generate,
+   *                        e.g. 0.9
+   * @param {*} data.randomSeed - the random seed to use for sampling, e.g. 42
+   * @param {*} data.safeMode - deprecated use safePrompt instead
+   * @param {*} data.safePrompt - whether to use safe mode, e.g. true
+   * @param {*} data.toolChoice - the tool to use, e.g. 'auto'
+   * @param {*} data.responseFormat - the format of the response,
+   *                                  e.g. 'json_format'
+   * @param {Object} options - Additional operational options.
+   * @param {*} [options.signal] - optional AbortSignal instance to control
+   *                               request The signal will be combined with
+   *                               default timeout signal
+   * @return {Promise<Object>}
+   */
+  chatStream = async function* (
+    {
+      model,
+      messages,
+      tools,
+      temperature,
+      maxTokens,
+      topP,
+      randomSeed,
+      safeMode,
+      safePrompt,
+      toolChoice,
+      responseFormat,
+    },
+    {signal} = {},
+  ) {
+    const request = this._makeChatCompletionRequest(
+      model,
+      messages,
+      tools,
+      temperature,
+      maxTokens,
+      topP,
+      randomSeed,
+      true,
+      safeMode,
+      safePrompt,
+      toolChoice,
+      responseFormat,
+    );
+    const response = await this._request(
+      'post',
+      'v1/chat/completions',
+      request,
+      signal,
+    );
+
+    let buffer = '';
+    const decoder = new TextDecoder();
+    for await (const chunk of response) {
+      buffer += decoder.decode(chunk, {stream: true});
+      let firstNewline;
+      while ((firstNewline = buffer.indexOf('\n')) !== -1) {
+        const chunkLine = buffer.substring(0, firstNewline);
+        buffer = buffer.substring(firstNewline + 1);
+        if (chunkLine.startsWith('data:')) {
+          const json = chunkLine.substring(6).trim();
+          if (json !== '[DONE]') {
+            yield JSON.parse(json);
+          }
+        }
+      }
+    }
+  };
+
+  /**
+   * An embeddings endpoint that returns embeddings for a single,
+   * or batch of inputs
+   * @param {*} model The embedding model to use, e.g. mistral-embed
+   * @param {*} input The input to embed,
+   * e.g. ['What is the best French cheese?']
+   * @return {Promise<Object>}
+   */
+  embeddings = async function({model, input}) {
+    const request = {
+      model: model,
+      input: input,
+    };
+    const response = await this._request('post', 'v1/embeddings', request);
+    return response;
+  };
+
+  /**
+   * A completion endpoint without streaming.
+   *
+   * @param {Object} data - The main completion configuration.
+   * @param {*} data.model - the name of the model to chat with,
+   *                         e.g. mistral-tiny
+   * @param {*} data.prompt - the prompt to complete,
+   *                       e.g. 'def fibonacci(n: int):'
+   * @param {*} data.temperature - the temperature to use for sampling, e.g. 0.5
+   * @param {*} data.maxTokens - the maximum number of tokens to generate,
+   *                             e.g. 100
+   * @param {*} data.topP - the cumulative probability of tokens to generate,
+   *                        e.g. 0.9
+   * @param {*} data.randomSeed - the random seed to use for sampling, e.g. 42
+   * @param {*} data.stop - the stop sequence to use, e.g. ['\n']
+   * @param {*} data.suffix - the suffix to append to the prompt,
+   *                       e.g. 'n = int(input(\'Enter a number: \'))'
+   * @param {Object} options - Additional operational options.
+   * @param {*} [options.signal] - optional AbortSignal instance to control
+   *                               request The signal will be combined with
+   *                               default timeout signal
+   * @return {Promise<Object>}
+   */
+  completion = async function(
+    {model, prompt, suffix, temperature, maxTokens, topP, randomSeed, stop},
+    {signal} = {},
+  ) {
+    const request = this._makeCompletionRequest(
+      model,
+      prompt,
+      suffix,
+      temperature,
+      maxTokens,
+      topP,
+      randomSeed,
+      stop,
+      false,
+    );
+    const response = await this._request(
+      'post',
+      'v1/fim/completions',
+      request,
+      signal,
+    );
+    return response;
+  };
+
+  /**
+   * A completion endpoint that streams responses.
+   *
+   * @param {Object} data - The main completion configuration.
+   * @param {*} data.model - the name of the model to chat with,
+   *                         e.g. mistral-tiny
+   * @param {*} data.prompt - the prompt to complete,
+   *                       e.g. 'def fibonacci(n: int):'
+   * @param {*} data.temperature - the temperature to use for sampling, e.g. 0.5
+   * @param {*} data.maxTokens - the maximum number of tokens to generate,
+   *                             e.g. 100
+   * @param {*} data.topP - the cumulative probability of tokens to generate,
+   *                        e.g. 0.9
+   * @param {*} data.randomSeed - the random seed to use for sampling, e.g. 42
+   * @param {*} data.stop - the stop sequence to use, e.g. ['\n']
+   * @param {*} data.suffix - the suffix to append to the prompt,
+   *                       e.g. 'n = int(input(\'Enter a number: \'))'
+   * @param {Object} options - Additional operational options.
+   * @param {*} [options.signal] - optional AbortSignal instance to control
+   *                               request The signal will be combined with
+   *                               default timeout signal
+   * @return {Promise<Object>}
+   */
+  completionStream = async function* (
+    {model, prompt, suffix, temperature, maxTokens, topP, randomSeed, stop},
+    {signal} = {},
+  ) {
+    const request = this._makeCompletionRequest(
+      model,
+      prompt,
+      suffix,
+      temperature,
+      maxTokens,
+      topP,
+      randomSeed,
+      stop,
+      true,
+    );
+    const response = await this._request(
+      'post',
+      'v1/fim/completions',
+      request,
+      signal,
+    );
+
+    let buffer = '';
+    const decoder = new TextDecoder();
+    for await (const chunk of response) {
+      buffer += decoder.decode(chunk, {stream: true});
+      let firstNewline;
+      while ((firstNewline = buffer.indexOf('\n')) !== -1) {
+        const chunkLine = buffer.substring(0, firstNewline);
+        buffer = buffer.substring(firstNewline + 1);
+        if (chunkLine.startsWith('data:')) {
+          const json = chunkLine.substring(6).trim();
+          if (json !== '[DONE]') {
+            yield JSON.parse(json);
+          }
+        }
+      }
+    }
+  };
+}
+
+export default MistralClient;
+</file>
+
+<file path="src/files.d.ts">
+export enum Purpose {
+  finetune = 'fine-tune',
+}
+
+export interface FileObject {
+  id: string;
+  object: string;
+  bytes: number;
+  created_at: number;
+  filename: string;
+  purpose?: Purpose;
+}
+
+export interface FileDeleted {
+  id: string;
+  object: string;
+  deleted: boolean;
+}
+
+export class FilesClient {
+  constructor(client: MistralClient);
+
+  create(options: { file: File; purpose?: string }): Promise<FileObject>;
+
+  retrieve(options: { fileId: string }): Promise<FileObject>;
+
+  list(): Promise<FileObject[]>;
+
+  delete(options: { fileId: string }): Promise<FileDeleted>;
+}
+</file>
+
+<file path="src/files.js">
+/**
+ * Class representing a client for file operations.
+ */
+class FilesClient {
+  /**
+   * Create a FilesClient object.
+   * @param {MistralClient} client - The client object used for making requests.
+   */
+  constructor(client) {
+    this.client = client;
+  }
+
+  /**
+   * Create a new file.
+   * @param {File} file - The file to be created.
+   * @param {string} purpose - The purpose of the file. Default is 'fine-tune'.
+   * @return {Promise<*>} A promise that resolves to a FileObject.
+   * @throws {MistralAPIError} If no response is received from the server.
+   */
+  async create({file, purpose = 'fine-tune'}) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('purpose', purpose);
+    const response = await this.client._request(
+      'post',
+      'v1/files',
+      null,
+      undefined,
+      formData,
+    );
+    return response;
+  }
+
+  /**
+   * Retrieve a file.
+   * @param {string} fileId - The ID of the file to retrieve.
+   * @return {Promise<*>} A promise that resolves to the file data.
+   */
+  async retrieve({fileId}) {
+    const response = await this.client._request('get', `v1/files/${fileId}`);
+    return response;
+  }
+
+  /**
+   * List all files.
+   * @return {Promise<Array<FileObject>>} A promise that resolves to
+   * an array of FileObject.
+   */
+  async list() {
+    const response = await this.client._request('get', 'v1/files');
+    return response;
+  }
+
+  /**
+   * Delete a file.
+   * @param {string} fileId - The ID of the file to delete.
+   * @return {Promise<*>} A promise that resolves to the response.
+   */
+  async delete({fileId}) {
+    const response = await this.client._request('delete', `v1/files/${fileId}`);
+    return response;
+  }
+}
+
+export default FilesClient;
+</file>
+
+<file path="src/jobs.d.ts">
+export enum JobStatus {
+  QUEUED = 'QUEUED',
+  STARTED = 'STARTED',
+  RUNNING = 'RUNNING',
+  FAILED = 'FAILED',
+  SUCCESS = 'SUCCESS',
+  CANCELLED = 'CANCELLED',
+  CANCELLATION_REQUESTED = 'CANCELLATION_REQUESTED',
+}
+
+export interface TrainingParameters {
+  training_steps: number;
+  learning_rate: number;
+}
+
+export interface WandbIntegration {
+  type: Literal<'wandb'>;
+  project: string;
+  name: string | null;
+  api_key: string | null;
+  run_name: string | null;
+}
+
+export type Integration = WandbIntegration;
+
+export interface Job {
+  id: string;
+  hyperparameters: TrainingParameters;
+  fine_tuned_model: string;
+  model: string;
+  status: JobStatus;
+  jobType: string;
+  created_at: number;
+  modified_at: number;
+  training_files: string[];
+  validation_files?: string[];
+  object: 'job';
+  integrations: Integration[];
+}
+
+export interface Event {
+  name: string;
+  data?: Record<string, unknown>;
+  created_at: number;
+}
+
+export interface Metric {
+  train_loss: float | null;
+  valid_loss: float | null;
+  valid_mean_token_accuracy: float | null;
+}
+
+export interface Checkpoint {
+  metrics: Metric;
+  step_number: int;
+  created_at: int;
+}
+
+export interface DetailedJob extends Job {
+  events: Event[];
+  checkpoints: Checkpoint[];
+}
+
+export interface Jobs {
+  data: Job[];
+  object: 'list';
+}
+
+export class JobsClient {
+  constructor(client: MistralClient);
+
+  create(options: {
+    model: string;
+    trainingFiles: string[];
+    validationFiles?: string[];
+    hyperparameters?: TrainingParameters;
+    suffix?: string;
+    integrations?: Integration[];
+  }): Promise<Job>;
+
+  retrieve(options: { jobId: string }): Promise<DetailedJob>;
+
+  list(params?: Record<string, unknown>): Promise<Jobs>;
+
+  cancel(options: { jobId: string }): Promise<DetailedJob>;
+}
+</file>
+
+<file path="src/jobs.js">
+/**
+ * Class representing a client for job operations.
+ */
+class JobsClient {
+  /**
+   * Create a JobsClient object.
+   * @param {MistralClient} client - The client object used for making requests.
+   */
+  constructor(client) {
+    this.client = client;
+  }
+
+  /**
+   * Create a new job.
+   * @param {string} model - The model to be used for the job.
+   * @param {Array<string>} trainingFiles - The list of training files.
+   * @param {Array<string>} validationFiles - The list of validation files.
+   * @param {TrainingParameters} hyperparameters - The hyperparameters.
+   * @param {string} suffix - The suffix for the job.
+   * @param {Array<Integration>} integrations - The integrations for the job.
+   * @return {Promise<*>} A promise that resolves to a Job object.
+   * @throws {MistralAPIError} If no response is received from the server.
+   */
+  async create({
+    model,
+    trainingFiles,
+    validationFiles = [],
+    hyperparameters = {
+      training_steps: 1800,
+      learning_rate: 1.0e-4,
+    },
+    suffix = null,
+    integrations = null,
+  }) {
+    const response = await this.client._request('post', 'v1/fine_tuning/jobs', {
+      model,
+      training_files: trainingFiles,
+      validation_files: validationFiles,
+      hyperparameters,
+      suffix,
+      integrations,
+    });
+    return response;
+  }
+
+  /**
+   * Retrieve a job.
+   * @param {string} jobId - The ID of the job to retrieve.
+   * @return {Promise<*>} A promise that resolves to the job data.
+   */
+  async retrieve({jobId}) {
+    const response = await this.client._request(
+      'get', `v1/fine_tuning/jobs/${jobId}`, {},
+    );
+    return response;
+  }
+
+  /**
+   * List all jobs.
+   * @return {Promise<Array<Job>>} A promise that resolves to an array of Job.
+   */
+  async list() {
+    const response = await this.client._request(
+      'get', 'v1/fine_tuning/jobs', {},
+    );
+    return response;
+  }
+
+  /**
+   * Cancel a job.
+   * @param {string} jobId - The ID of the job to cancel.
+   * @return {Promise<*>} A promise that resolves to the response.
+   */
+  async cancel({jobId}) {
+    const response = await this.client._request(
+      'post', `v1/fine_tuning/jobs/${jobId}/cancel`, {},
+    );
+    return response;
+  }
+}
+
+export default JobsClient;
+</file>
+
+<file path="tests/client.test.js">
+import MistralClient from '../src/client';
+import {
+  mockListModels,
+  mockFetch,
+  mockChatResponseStreamingPayload,
+  mockEmbeddingRequest,
+  mockEmbeddingResponsePayload,
+  mockChatResponsePayload,
+  mockFetchStream,
+} from './utils';
+
+// Test the list models endpoint
+describe('Mistral Client', () => {
+  let client;
+  beforeEach(() => {
+    client = new MistralClient();
+  });
+
+  describe('chat()', () => {
+    it('should return a chat response object', async() => {
+      // Mock the fetch function
+      const mockResponse = mockChatResponsePayload();
+      client._fetch = mockFetch(200, mockResponse);
+
+      const response = await client.chat({
+        model: 'mistral-small-latest',
+        messages: [
+          {
+            role: 'user',
+            content: 'What is the best French cheese?',
+          },
+        ],
+      });
+      expect(response).toEqual(mockResponse);
+    });
+
+    it('should return a chat response object if safeMode is set', async() => {
+      // Mock the fetch function
+      const mockResponse = mockChatResponsePayload();
+      client._fetch = mockFetch(200, mockResponse);
+
+      const response = await client.chat({
+        model: 'mistral-small-latest',
+        messages: [
+          {
+            role: 'user',
+            content: 'What is the best French cheese?',
+          },
+        ],
+        safeMode: true,
+      });
+      expect(response).toEqual(mockResponse);
+    });
+
+    it('should return a chat response object if safePrompt is set', async() => {
+      // Mock the fetch function
+      const mockResponse = mockChatResponsePayload();
+      client._fetch = mockFetch(200, mockResponse);
+
+      const response = await client.chat({
+        model: 'mistral-small-latest',
+        messages: [
+          {
+            role: 'user',
+            content: 'What is the best French cheese?',
+          },
+        ],
+        safePrompt: true,
+      });
+      expect(response).toEqual(mockResponse);
+    });
+  });
+
+  describe('chatStream()', () => {
+    it('should return parsed, streamed response', async() => {
+      // Mock the fetch function
+      const mockResponse = mockChatResponseStreamingPayload();
+      client._fetch = mockFetchStream(200, mockResponse);
+
+      const response = await client.chatStream({
+        model: 'mistral-small-latest',
+        messages: [
+          {
+            role: 'user',
+            content: 'What is the best French cheese?',
+          },
+        ],
+      });
+
+      const parsedResponse = [];
+      for await (const r of response) {
+        parsedResponse.push(r);
+      }
+
+      expect(parsedResponse.length).toEqual(11);
+    });
+
+    it('should return parsed, streamed response with safeMode', async() => {
+      // Mock the fetch function
+      const mockResponse = mockChatResponseStreamingPayload();
+      client._fetch = mockFetchStream(200, mockResponse);
+
+      const response = await client.chatStream({
+        model: 'mistral-small-latest',
+        messages: [
+          {
+            role: 'user',
+            content: 'What is the best French cheese?',
+          },
+        ],
+        safeMode: true,
+      });
+
+      const parsedResponse = [];
+      for await (const r of response) {
+        parsedResponse.push(r);
+      }
+
+      expect(parsedResponse.length).toEqual(11);
+    });
+
+    it('should return parsed, streamed response with safePrompt', async() => {
+      // Mock the fetch function
+      const mockResponse = mockChatResponseStreamingPayload();
+      client._fetch = mockFetchStream(200, mockResponse);
+
+      const response = await client.chatStream({
+        model: 'mistral-small-latest',
+        messages: [
+          {
+            role: 'user',
+            content: 'What is the best French cheese?',
+          },
+        ],
+        safePrompt: true,
+      });
+
+      const parsedResponse = [];
+      for await (const r of response) {
+        parsedResponse.push(r);
+      }
+
+      expect(parsedResponse.length).toEqual(11);
+    });
+  });
+
+  describe('embeddings()', () => {
+    it('should return embeddings', async() => {
+      // Mock the fetch function
+      const mockResponse = mockEmbeddingResponsePayload();
+      client._fetch = mockFetch(200, mockResponse);
+
+      const response = await client.embeddings(mockEmbeddingRequest);
+      expect(response).toEqual(mockResponse);
+    });
+  });
+
+  describe('embeddings() batched', () => {
+    it('should return batched embeddings', async() => {
+      // Mock the fetch function
+      const mockResponse = mockEmbeddingResponsePayload(10);
+      client._fetch = mockFetch(200, mockResponse);
+
+      const response = await client.embeddings(mockEmbeddingRequest);
+      expect(response).toEqual(mockResponse);
+    });
+  });
+
+  describe('listModels()', () => {
+    it('should return a list of models', async() => {
+      // Mock the fetch function
+      const mockResponse = mockListModels();
+      client._fetch = mockFetch(200, mockResponse);
+
+      const response = await client.listModels();
+      expect(response).toEqual(mockResponse);
+    });
+  });
+
+  describe('completion()', () => {
+    it('should return a chat response object', async() => {
+      // Mock the fetch function
+      const mockResponse = mockChatResponsePayload();
+      client._fetch = mockFetch(200, mockResponse);
+
+      const response = await client.completion({
+        model: 'mistral-small-latest',
+        prompt: '# this is a',
+      });
+      expect(response).toEqual(mockResponse);
+    });
+  });
+});
+</file>
+
+<file path="tests/files.test.js">
+import MistralClient from '../src/client';
+import {
+  mockFetch,
+  mockFileResponsePayload,
+  mockFilesResponsePayload,
+  mockDeletedFileResponsePayload,
+} from './utils';
+
+// Test the list models endpoint
+describe('Mistral Client', () => {
+  let client;
+  beforeEach(() => {
+    client = new MistralClient();
+  });
+
+  describe('create()', () => {
+    it('should return a file response object', async() => {
+      // Mock the fetch function
+      const mockResponse = mockFileResponsePayload();
+      client._fetch = mockFetch(200, mockResponse);
+
+      const response = await client.files.create({
+        file: null,
+      });
+      expect(response).toEqual(mockResponse);
+    });
+  });
+
+  describe('retrieve()', () => {
+    it('should return a file response object', async() => {
+      // Mock the fetch function
+      const mockResponse = mockFileResponsePayload();
+      client._fetch = mockFetch(200, mockResponse);
+
+      const response = await client.files.retrieve({
+        fileId: 'fileId',
+      });
+      expect(response).toEqual(mockResponse);
+    });
+  });
+
+  describe('retrieve()', () => {
+    it('should return a list of files response object', async() => {
+      // Mock the fetch function
+      const mockResponse = mockFilesResponsePayload();
+      client._fetch = mockFetch(200, mockResponse);
+
+      const response = await client.files.list();
+      expect(response).toEqual(mockResponse);
+    });
+  });
+
+  describe('delete()', () => {
+    it('should return a deleted file response object', async() => {
+      // Mock the fetch function
+      const mockResponse = mockDeletedFileResponsePayload();
+      client._fetch = mockFetch(200, mockResponse);
+
+      const response = await client.files.delete({
+        fileId: 'fileId',
+      });
+      expect(response).toEqual(mockResponse);
+    });
+  });
+});
+</file>
+
+<file path="tests/jobs.test.js">
+import MistralClient from '../src/client';
+import {
+  mockFetch,
+  mockJobResponsePayload,
+  mockJobsResponsePayload,
+  mockDeletedJobResponsePayload,
+} from './utils';
+
+// Test the jobs endpoint
+describe('Mistral Client', () => {
+  let client;
+  beforeEach(() => {
+    client = new MistralClient();
+  });
+
+  describe('createJob()', () => {
+    it('should return a job response object', async() => {
+      // Mock the fetch function
+      const mockResponse = mockJobResponsePayload();
+      client._fetch = mockFetch(200, mockResponse);
+
+      const response = await client.jobs.create({
+        model: 'mistral-medium',
+        trainingFiles: [],
+        validationFiles: [],
+        hyperparameters: {
+          training_steps: 1800,
+          learning_rate: 1.0e-4,
+        },
+      });
+      expect(response).toEqual(mockResponse);
+    });
+  });
+
+  describe('retrieveJob()', () => {
+    it('should return a job response object', async() => {
+      // Mock the fetch function
+      const mockResponse = mockJobResponsePayload();
+      client._fetch = mockFetch(200, mockResponse);
+
+      const response = await client.jobs.retrieve({
+        jobId: 'jobId',
+      });
+      expect(response).toEqual(mockResponse);
+    });
+  });
+
+  describe('listJobs()', () => {
+    it('should return a list of jobs response object', async() => {
+      // Mock the fetch function
+      const mockResponse = mockJobsResponsePayload();
+      client._fetch = mockFetch(200, mockResponse);
+
+      const response = await client.jobs.list();
+      expect(response).toEqual(mockResponse);
+    });
+  });
+
+  describe('cancelJob()', () => {
+    it('should return a deleted job response object', async() => {
+      // Mock the fetch function
+      const mockResponse = mockDeletedJobResponsePayload();
+      client._fetch = mockFetch(200, mockResponse);
+
+      const response = await client.jobs.cancel({
+        jobId: 'jobId',
+      });
+      expect(response).toEqual(mockResponse);
+    });
+  });
+});
+</file>
+
+<file path="tests/utils.js">
+import jest from 'jest-mock';
+
+/**
+ * Mock the fetch function
+ * @param {*} status
+ * @param {*} payload
+ * @return {Object}
+ */
+export function mockFetch(status, payload) {
+  return jest.fn(() =>
+    Promise.resolve({
+      json: () => Promise.resolve(payload),
+      text: () => Promise.resolve(JSON.stringify(payload)),
+      status,
+      ok: status >= 200 && status < 300,
+    }),
+  );
+}
+
+/**
+ * Mock fetch stream
+ * @param {*} status
+ * @param {*} payload
+ * @return {Object}
+ */
+export function mockFetchStream(status, payload) {
+  const asyncIterator = async function* () {
+    while (true) {
+      // Read from the stream
+      const value = payload.shift();
+      // Exit if we're done
+      if (!value) return;
+      // Else yield the chunk
+      yield value;
+    }
+  };
+
+  return jest.fn(() =>
+    Promise.resolve({
+      // body is a ReadableStream of the objects in payload list
+      body: asyncIterator(),
+      status,
+      ok: status >= 200 && status < 300,
+    }),
+  );
+}
+
+/**
+ * Mock models list
+ * @return {Object}
+ */
+export function mockListModels() {
+  return {
+    object: 'list',
+    data: [
+      {
+        id: 'mistral-medium',
+        object: 'model',
+        created: 1703186988,
+        owned_by: 'mistralai',
+        root: null,
+        parent: null,
+        permission: [
+          {
+            id: 'modelperm-15bebaf316264adb84b891bf06a84933',
+            object: 'model_permission',
+            created: 1703186988,
+            allow_create_engine: false,
+            allow_sampling: true,
+            allow_logprobs: false,
+            allow_search_indices: false,
+            allow_view: true,
+            allow_fine_tuning: false,
+            organization: '*',
+            group: null,
+            is_blocking: false,
+          },
+        ],
+      },
+      {
+        id: 'mistral-small-latest',
+        object: 'model',
+        created: 1703186988,
+        owned_by: 'mistralai',
+        root: null,
+        parent: null,
+        permission: [
+          {
+            id: 'modelperm-d0dced5c703242fa862f4ca3f241c00e',
+            object: 'model_permission',
+            created: 1703186988,
+            allow_create_engine: false,
+            allow_sampling: true,
+            allow_logprobs: false,
+            allow_search_indices: false,
+            allow_view: true,
+            allow_fine_tuning: false,
+            organization: '*',
+            group: null,
+            is_blocking: false,
+          },
+        ],
+      },
+      {
+        id: 'mistral-tiny',
+        object: 'model',
+        created: 1703186988,
+        owned_by: 'mistralai',
+        root: null,
+        parent: null,
+        permission: [
+          {
+            id: 'modelperm-0e64e727c3a94f17b29f8895d4be2910',
+            object: 'model_permission',
+            created: 1703186988,
+            allow_create_engine: false,
+            allow_sampling: true,
+            allow_logprobs: false,
+            allow_search_indices: false,
+            allow_view: true,
+            allow_fine_tuning: false,
+            organization: '*',
+            group: null,
+            is_blocking: false,
+          },
+        ],
+      },
+      {
+        id: 'mistral-embed',
+        object: 'model',
+        created: 1703186988,
+        owned_by: 'mistralai',
+        root: null,
+        parent: null,
+        permission: [
+          {
+            id: 'modelperm-ebdff9046f524e628059447b5932e3ad',
+            object: 'model_permission',
+            created: 1703186988,
+            allow_create_engine: false,
+            allow_sampling: true,
+            allow_logprobs: false,
+            allow_search_indices: false,
+            allow_view: true,
+            allow_fine_tuning: false,
+            organization: '*',
+            group: null,
+            is_blocking: false,
+          },
+        ],
+      },
+    ],
+  };
+}
+
+/**
+ * Mock chat completion object
+ * @return {Object}
+ */
+export function mockChatResponsePayload() {
+  return {
+    id: 'chat-98c8c60e3fbf4fc49658eddaf447357c',
+    object: 'chat.completion',
+    created: 1703165682,
+    choices: [
+      {
+        finish_reason: 'stop',
+        message: {
+          role: 'assistant',
+          content: 'What is the best French cheese?',
+        },
+        index: 0,
+      },
+    ],
+    model: 'mistral-small-latest',
+    usage: {prompt_tokens: 90, total_tokens: 90, completion_tokens: 0},
+  };
+}
+
+/**
+ * Mock chat completion stream
+ * @return {Object}
+ */
+export function mockChatResponseStreamingPayload() {
+  const encoder = new TextEncoder();
+  const firstMessage = [
+    encoder.encode(
+      'data: ' +
+        JSON.stringify({
+          id: 'cmpl-8cd9019d21ba490aa6b9740f5d0a883e',
+          model: 'mistral-small-latest',
+          choices: [
+            {
+              index: 0,
+              delta: {role: 'assistant'},
+              finish_reason: null,
+            },
+          ],
+        }) +
+        '\n\n',
+    ),
+  ];
+  const lastMessage = [encoder.encode('data: [DONE]\n\n')];
+
+  const dataMessages = [];
+  for (let i = 0; i < 10; i++) {
+    dataMessages.push(
+      encoder.encode(
+        'data: ' +
+          JSON.stringify({
+            id: 'cmpl-8cd9019d21ba490aa6b9740f5d0a883e',
+            object: 'chat.completion.chunk',
+            created: 1703168544,
+            model: 'mistral-small-latest',
+            choices: [
+              {
+                index: i,
+                delta: {content: `stream response ${i}`},
+                finish_reason: null,
+              },
+            ],
+          }) +
+          '\n\n',
+      ),
+    );
+  }
+
+  return firstMessage.concat(dataMessages).concat(lastMessage);
+}
+
+/**
+ * Mock embeddings response
+ * @param {number} batchSize
+ * @return {Object}
+ */
+export function mockEmbeddingResponsePayload(batchSize = 1) {
+  return {
+    id: 'embd-98c8c60e3fbf4fc49658eddaf447357c',
+    object: 'list',
+    data:
+      [
+        {
+          object: 'embedding',
+          embedding: [-0.018585205078125, 0.027099609375, 0.02587890625],
+          index: 0,
+        },
+      ] * batchSize,
+    model: 'mistral-embed',
+    usage: {prompt_tokens: 90, total_tokens: 90, completion_tokens: 0},
+  };
+}
+
+/**
+ * Mock embeddings request payload
+ * @return {Object}
+ */
+export function mockEmbeddingRequest() {
+  return {
+    model: 'mistral-embed',
+    input: 'embed',
+  };
+}
+
+/**
+ * Mock file response payload
+ * @return {Object}
+ */
+export function mockFileResponsePayload() {
+  return {
+    id: 'fileId',
+    object: 'file',
+    bytes: 0,
+    created_at: 1633046400000,
+    filename: 'file.jsonl',
+    purpose: 'fine-tune',
+  };
+}
+
+/**
+ * Mock files response payload
+ * @return {Object}
+ */
+export function mockFilesResponsePayload() {
+  return {
+    data: [
+      {
+        id: 'fileId',
+        object: 'file',
+        bytes: 0,
+        created_at: 1633046400000,
+        filename: 'file.jsonl',
+        purpose: 'fine-tune',
+      },
+    ],
+    object: 'list',
+  };
+}
+
+/**
+ * Mock deleted file response payload
+ * @return {Object}
+ */
+export function mockDeletedFileResponsePayload() {
+  return {
+    id: 'fileId',
+    object: 'file',
+    deleted: true,
+  };
+}
+
+/**
+ * Mock job response payload
+ * @return {Object}
+ */
+export function mockJobResponsePayload() {
+  return {
+    id: 'jobId',
+    hyperparameters: {
+      training_steps: 1800,
+      learning_rate: 1.0e-4,
+    },
+    fine_tuned_model: 'fine_tuned_model_id',
+    model: 'mistral-medium',
+    status: 'QUEUED',
+    job_type: 'fine_tuning',
+    created_at: 1633046400000,
+    modified_at: 1633046400000,
+    training_files: ['file1.jsonl', 'file2.jsonl'],
+    validation_files: ['file3.jsonl', 'file4.jsonl'],
+    object: 'job',
+  };
+}
+
+/**
+ * Mock jobs response payload
+ * @return {Object}
+ */
+export function mockJobsResponsePayload() {
+  return {
+    data: [
+      {
+        id: 'jobId1',
+        hyperparameters: {
+          training_steps: 1800,
+          learning_rate: 1.0e-4,
+        },
+        fine_tuned_model: 'fine_tuned_model_id1',
+        model: 'mistral-medium',
+        status: 'QUEUED',
+        job_type: 'fine_tuning',
+        created_at: 1633046400000,
+        modified_at: 1633046400000,
+        training_files: ['file1.jsonl', 'file2.jsonl'],
+        validation_files: ['file3.jsonl', 'file4.jsonl'],
+        object: 'job',
+      },
+      {
+        id: 'jobId2',
+        hyperparameters: {
+          training_steps: 1800,
+          learning_rate: 1.0e-4,
+        },
+        fine_tuned_model: 'fine_tuned_model_id2',
+        model: 'mistral-medium',
+        status: 'RUNNING',
+        job_type: 'fine_tuning',
+        created_at: 1633046400000,
+        modified_at: 1633046400000,
+        training_files: ['file5.jsonl', 'file6.jsonl'],
+        validation_files: ['file7.jsonl', 'file8.jsonl'],
+        object: 'job',
+      },
+    ],
+    object: 'list',
+  };
+}
+
+/**
+ * Mock deleted job response payload
+ * @return {Object}
+ */
+export function mockDeletedJobResponsePayload() {
+  return {
+    id: 'jobId',
+    object: 'job',
+    deleted: true,
+  };
+}
+</file>
+
+<file path=".eslintrc.yml">
+env:
+  browser: true
+  es2021: true
+extends: google
+ignorePatterns:
+  - examples/chat-react/
+  - src/client.d.ts
+parserOptions:
+  ecmaVersion: latest
+  sourceType: module
+rules:
+  indent: ["error", 2]
+  space-before-function-paren: ["error", "never"]
+  quotes: ["error", "single"]
+</file>
+
+<file path=".gitignore">
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Diagnostic reports (https://nodejs.org/api/report.html)
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Directory for instrumented libs generated by jscoverage/JSCover
+lib-cov
+
+# Coverage directory used by tools like istanbul
+coverage
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Grunt intermediate storage (https://gruntjs.com/creating-plugins#storing-task-files)
+.grunt
+
+# Bower dependency directory (https://bower.io/)
+bower_components
+
+# node-waf configuration
+.lock-wscript
+
+# Compiled binary addons (https://nodejs.org/api/addons.html)
+build/Release
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Snowpack dependency directory (https://snowpack.dev/)
+web_modules/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variable files
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# Next.js build output
+.next
+out
+
+# Nuxt.js build / generate output
+.nuxt
+dist
+
+# Gatsby files
+.cache/
+# Comment in the public line in if your project uses Gatsby and not Next.js
+# https://nextjs.org/blog/next-9-1#public-directory-support
+# public
+
+# vuepress build output
+.vuepress/dist
+
+# vuepress v2.x temp and cache directory
+.temp
+.cache
+
+# Docusaurus cache and generated files
+.docusaurus
+
+# Serverless directories
+.serverless/
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# TernJS port file
+.tern-port
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# yarn v2
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+changes.diff
+</file>
+
+<file path=".npmrc">
+# when we run npm version, we don't want to create a git tag
+git-tag-version=false
+</file>
+
+<file path="LICENSE">
+Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
+
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+   1. Definitions.
+
+      "License" shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
+
+      "Licensor" shall mean the copyright owner or entity authorized by
+      the copyright owner that is granting the License.
+
+      "Legal Entity" shall mean the union of the acting entity and all
+      other entities that control, are controlled by, or are under common
+      control with that entity. For the purposes of this definition,
+      "control" means (i) the power, direct or indirect, to cause the
+      direction or management of such entity, whether by contract or
+      otherwise, or (ii) ownership of fifty percent (50%) or more of the
+      outstanding shares, or (iii) beneficial ownership of such entity.
+
+      "You" (or "Your") shall mean an individual or Legal Entity
+      exercising permissions granted by this License.
+
+      "Source" form shall mean the preferred form for making modifications,
+      including but not limited to software source code, documentation
+      source, and configuration files.
+
+      "Object" form shall mean any form resulting from mechanical
+      transformation or translation of a Source form, including but
+      not limited to compiled object code, generated documentation,
+      and conversions to other media types.
+
+      "Work" shall mean the work of authorship, whether in Source or
+      Object form, made available under the License, as indicated by a
+      copyright notice that is included in or attached to the work
+      (an example is provided in the Appendix below).
+
+      "Derivative Works" shall mean any work, whether in Source or Object
+      form, that is based on (or derived from) the Work and for which the
+      editorial revisions, annotations, elaborations, or other modifications
+      represent, as a whole, an original work of authorship. For the purposes
+      of this License, Derivative Works shall not include works that remain
+      separable from, or merely link (or bind by name) to the interfaces of,
+      the Work and Derivative Works thereof.
+
+      "Contribution" shall mean any work of authorship, including
+      the original version of the Work and any modifications or additions
+      to that Work or Derivative Works thereof, that is intentionally
+      submitted to Licensor for inclusion in the Work by the copyright owner
+      or by an individual or Legal Entity authorized to submit on behalf of
+      the copyright owner. For the purposes of this definition, "submitted"
+      means any form of electronic, verbal, or written communication sent
+      to the Licensor or its representatives, including but not limited to
+      communication on electronic mailing lists, source code control systems,
+      and issue tracking systems that are managed by, or on behalf of, the
+      Licensor for the purpose of discussing and improving the Work, but
+      excluding communication that is conspicuously marked or otherwise
+      designated in writing by the copyright owner as "Not a Contribution."
+
+      "Contributor" shall mean Licensor and any individual or Legal Entity
+      on behalf of whom a Contribution has been received by Licensor and
+      subsequently incorporated within the Work.
+
+   2. Grant of Copyright License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      copyright license to reproduce, prepare Derivative Works of,
+      publicly display, publicly perform, sublicense, and distribute the
+      Work and such Derivative Works in Source or Object form.
+
+   3. Grant of Patent License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      (except as stated in this section) patent license to make, have made,
+      use, offer to sell, sell, import, and otherwise transfer the Work,
+      where such license applies only to those patent claims licensable
+      by such Contributor that are necessarily infringed by their
+      Contribution(s) alone or by combination of their Contribution(s)
+      with the Work to which such Contribution(s) was submitted. If You
+      institute patent litigation against any entity (including a
+      cross-claim or counterclaim in a lawsuit) alleging that the Work
+      or a Contribution incorporated within the Work constitutes direct
+      or contributory patent infringement, then any patent licenses
+      granted to You under this License for that Work shall terminate
+      as of the date such litigation is filed.
+
+   4. Redistribution. You may reproduce and distribute copies of the
+      Work or Derivative Works thereof in any medium, with or without
+      modifications, and in Source or Object form, provided that You
+      meet the following conditions:
+
+      (a) You must give any other recipients of the Work or
+          Derivative Works a copy of this License; and
+
+      (b) You must cause any modified files to carry prominent notices
+          stating that You changed the files; and
+
+      (c) You must retain, in the Source form of any Derivative Works
+          that You distribute, all copyright, patent, trademark, and
+          attribution notices from the Source form of the Work,
+          excluding those notices that do not pertain to any part of
+          the Derivative Works; and
+
+      (d) If the Work includes a "NOTICE" text file as part of its
+          distribution, then any Derivative Works that You distribute must
+          include a readable copy of the attribution notices contained
+          within such NOTICE file, excluding those notices that do not
+          pertain to any part of the Derivative Works, in at least one
+          of the following places: within a NOTICE text file distributed
+          as part of the Derivative Works; within the Source form or
+          documentation, if provided along with the Derivative Works; or,
+          within a display generated by the Derivative Works, if and
+          wherever such third-party notices normally appear. The contents
+          of the NOTICE file are for informational purposes only and
+          do not modify the License. You may add Your own attribution
+          notices within Derivative Works that You distribute, alongside
+          or as an addendum to the NOTICE text from the Work, provided
+          that such additional attribution notices cannot be construed
+          as modifying the License.
+
+      You may add Your own copyright statement to Your modifications and
+      may provide additional or different license terms and conditions
+      for use, reproduction, or distribution of Your modifications, or
+      for any such Derivative Works as a whole, provided Your use,
+      reproduction, and distribution of the Work otherwise complies with
+      the conditions stated in this License.
+
+   5. Submission of Contributions. Unless You explicitly state otherwise,
+      any Contribution intentionally submitted for inclusion in the Work
+      by You to the Licensor shall be under the terms and conditions of
+      this License, without any additional terms or conditions.
+      Notwithstanding the above, nothing herein shall supersede or modify
+      the terms of any separate license agreement you may have executed
+      with Licensor regarding such Contributions.
+
+   6. Trademarks. This License does not grant permission to use the trade
+      names, trademarks, service marks, or product names of the Licensor,
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
+
+   7. Disclaimer of Warranty. Unless required by applicable law or
+      agreed to in writing, Licensor provides the Work (and each
+      Contributor provides its Contributions) on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied, including, without limitation, any warranties or conditions
+      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+      PARTICULAR PURPOSE. You are solely responsible for determining the
+      appropriateness of using or redistributing the Work and assume any
+      risks associated with Your exercise of permissions under this License.
+
+   8. Limitation of Liability. In no event and under no legal theory,
+      whether in tort (including negligence), contract, or otherwise,
+      unless required by applicable law (such as deliberate and grossly
+      negligent acts) or agreed to in writing, shall any Contributor be
+      liable to You for damages, including any direct, indirect, special,
+      incidental, or consequential damages of any character arising as a
+      result of this License or out of the use or inability to use the
+      Work (including but not limited to damages for loss of goodwill,
+      work stoppage, computer failure or malfunction, or any and all
+      other commercial damages or losses), even if such Contributor
+      has been advised of the possibility of such damages.
+
+   9. Accepting Warranty or Additional Liability. While redistributing
+      the Work or Derivative Works thereof, You may choose to offer,
+      and charge a fee for, acceptance of support, warranty, indemnity,
+      or other liability obligations and/or rights consistent with this
+      License. However, in accepting such obligations, You may act only
+      on Your own behalf and on Your sole responsibility, not on behalf
+      of any other Contributor, and only if You agree to indemnify,
+      defend, and hold each Contributor harmless for any liability
+      incurred by, or claims asserted against, such Contributor by reason
+      of your accepting any such warranty or additional liability.
+
+   END OF TERMS AND CONDITIONS
+
+   APPENDIX: How to apply the Apache License to your work.
+
+      To apply the Apache License to your work, attach the following
+      boilerplate notice, with the fields enclosed by brackets "[]"
+      replaced with your own identifying information. (Don't include
+      the brackets!)  The text should be enclosed in the appropriate
+      comment syntax for the file format. We also recommend that a
+      file or class name and description of purpose be included on the
+      same "printed page" as the copyright notice for easier
+      identification within third-party archives.
+
+   Copyright [yyyy] [name of copyright owner]
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+</file>
+
+<file path="package.json">
+{
+  "name": "@mistralai/mistralai",
+  "version": "0.5.0",
+  "description": "",
+  "author": "bam4d@mistral.ai",
+  "license": "ISC",
+  "type": "module",
+  "main": "src/client.js",
+  "types": "src/client.d.ts",
+  "scripts": {
+    "lint": "./node_modules/.bin/eslint .",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest"
+  },
+  "jest": {
+    "testPathIgnorePatterns": [
+      "examples"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mistralai/client-js"
+  },
+  "dependencies": {
+    "node-fetch": "^2.6.7"
+  },
+  "devDependencies": {
+    "eslint": "^8.55.0",
+    "eslint-config-google": "^0.14.0",
+    "prettier": "2.8.8",
+    "jest": "^29.7.0"
+  }
+}
+</file>
+
+<file path="README.md">
+# 📢🚨 This repository is now archived 📢🚨
+
+We have deprecated this package in favor of [mistralai/client-ts](https://github.com/mistralai/client-ts), which is the new official Mistral client, compatibile with both Typescript and Javascript.
+
+You can find all installation information [here](https://github.com/mistralai/client-ts?tab=readme-ov-file#sdk-installation).
+
+This change is effective starting with version 1.0.0 of the [npm package](https://www.npmjs.com/package/@mistralai/mistralai?activeTab=readme).
+
+--- 
+
+This JavaScript client is inspired from [cohere-typescript](https://github.com/cohere-ai/cohere-typescript)
+
+# Mistral JavaScript Client
+
+You can use the Mistral JavaScript client to interact with the Mistral AI API.
+
+## Installing
+
+You can install the library in your project using:
+
+`npm install @mistralai/mistralai`
+
+## Usage
+
+You can watch a free course on using the Mistral JavaScript client [here.](https://scrimba.com/links/mistral)
+
+### Set up
+
+```typescript
+import MistralClient from '@mistralai/mistralai';
+
+const apiKey = process.env.MISTRAL_API_KEY || 'your_api_key';
+
+const client = new MistralClient(apiKey);
+```
+
+### List models
+
+```typescript
+const listModelsResponse = await client.listModels();
+const listModels = listModelsResponse.data;
+listModels.forEach((model) => {
+  console.log('Model:', model);
+});
+```
+
+### Chat with streaming
+
+```typescript
+const chatStreamResponse = await client.chatStream({
+  model: 'mistral-tiny',
+  messages: [{role: 'user', content: 'What is the best French cheese?'}],
+});
+
+console.log('Chat Stream:');
+for await (const chunk of chatStreamResponse) {
+  if (chunk.choices[0].delta.content !== undefined) {
+    const streamText = chunk.choices[0].delta.content;
+    process.stdout.write(streamText);
+  }
+}
+```
+
+### Chat without streaming
+
+```typescript
+const chatResponse = await client.chat({
+  model: 'mistral-tiny',
+  messages: [{role: 'user', content: 'What is the best French cheese?'}],
+});
+
+console.log('Chat:', chatResponse.choices[0].message.content);
+```
+
+### Embeddings
+
+```typescript
+const input = [];
+for (let i = 0; i < 1; i++) {
+  input.push('What is the best French cheese?');
+}
+
+const embeddingsBatchResponse = await client.embeddings({
+  model: 'mistral-embed',
+  input: input,
+});
+
+console.log('Embeddings Batch:', embeddingsBatchResponse.data);
+```
+
+### Files
+
+```typescript
+// Create a new file
+const file = fs.readFileSync('file.jsonl');
+const createdFile = await client.files.create({ file });
+
+// List files
+const files = await client.files.list();
+
+// Retrieve a file
+const retrievedFile = await client.files.retrieve({ fileId: createdFile.id });
+
+// Delete a file
+const deletedFile = await client.files.delete({ fileId: createdFile.id });
+```
+
+### Fine-tuning Jobs
+
+```typescript
+// Create a new job
+const createdJob = await client.jobs.create({
+  model: 'open-mistral-7B',
+  trainingFiles: [trainingFile.id],
+  validationFiles: [validationFile.id],
+  hyperparameters: {
+    trainingSteps: 10,
+    learningRate: 0.0001,
+  },
+});
+
+// List jobs
+const jobs = await client.jobs.list();
+
+// Retrieve a job
+const retrievedJob = await client.jobs.retrieve({ jobId: createdJob.id });
+
+// Cancel a job
+const canceledJob = await client.jobs.cancel({ jobId: createdJob.id });
+```
+
+## Run examples
+
+You can run the examples in the examples directory by installing them locally:
+
+```bash
+cd examples
+npm install .
+```
+
+### API key setup
+
+Running the examples requires a Mistral AI API key.
+
+Get your own Mistral API Key: <https://docs.mistral.ai/#api-access>
+
+### Run the examples
+
+```bash
+MISTRAL_API_KEY='your_api_key' node chat_with_streaming.js
+```
+
+### Persisting the API key in environment
+
+Set your Mistral API Key as an environment variable. You only need to do this once.
+
+```bash
+# set Mistral API Key (using zsh for example)
+$ echo 'export MISTRAL_API_KEY=[your_api_key]' >> ~/.zshenv
+
+# reload the environment (or just quit and open a new terminal)
+$ source ~/.zshenv
+```
+
+You can then run the examples without appending the API key:
+
+```bash
+node chat_with_streaming.js
+```
+After the env variable setup the client will find the `MISTRAL_API_KEY` by itself
+
+```typescript
+import MistralClient from '@mistralai/mistralai';
+
+const client = new MistralClient();
+```
+</file>
+
+</files>
+
+<git_diffs>
+<git_diff_work_tree>
+
+</git_diff_work_tree>
+<git_diff_staged>
+
+</git_diff_staged>
+</git_diffs>
